@@ -14,6 +14,31 @@
     ]
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$envExists = Test-Path '.env'; if (-not $envExists) { $msg = '⚠️  .env 없음 — GEMINI_API_KEY 미설정 (Phase 1 시작 전 필수)' } else { $hasKey = Select-String -Path '.env' -Pattern 'GEMINI_API_KEY' -Quiet; $msg = if ($hasKey) { '✅ 환경변수 확인 완료 (GEMINI_API_KEY)' } else { '⚠️  .env 있지만 GEMINI_API_KEY 없음' } }; Write-Output \"{`\"systemMessage`\": `\"$msg`\"}\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$data = $input | ConvertFrom-Json; $f = $data.tool_input.file_path; if ($f -match 'preload\\.js$') { $content = if ($data.tool_input.new_string) { $data.tool_input.new_string } elseif ($data.tool_input.content) { $data.tool_input.content } else { '' }; if ($content -match 'nodeIntegration\\s*:\\s*true|contextIsolation\\s*:\\s*false') { Write-Output '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Electron 보안 설정 변경 차단: contextIsolation:true, nodeIntegration:false 필수\"}}'; exit 2 } }",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
@@ -25,6 +50,18 @@
             "asyncRewake": true,
             "timeout": 300,
             "statusMessage": "테스트 실행 중... (실패 시 자동으로 알려드릴게요)"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "Write-Output '{\"systemMessage\": \"📋 컨텍스트 압축됨. 프로젝트: 옆집 컴공생 (NextDoor CS) | Mobile PWA(하드웨어 진단) + Desktop Electron(소프트웨어 진단) | Phase 재개: /implement-phase <번호>\"}'",
+            "timeout": 5
           }
         ]
       }
