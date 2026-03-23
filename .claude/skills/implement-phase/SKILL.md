@@ -1,7 +1,7 @@
 ---
 name: implement-phase
-description: 옆집 컴공생 프로젝트의 특정 Phase를 구현하고 빌드/검증합니다. Phase 번호(1~10)를 인자로 받습니다.
-argument-hint: <phase-number> (1~10)
+description: 옆집 컴공생 프로젝트의 특정 Phase를 구현하고 빌드/검증합니다. Phase 번호(1~11)를 인자로 받습니다.
+argument-hint: <phase-number> (1~11)
 ---
 
 # 옆집 컴공생 — Phase $ARGUMENTS 구현
@@ -25,6 +25,7 @@ CLAUDE.md와 `.claude/rules/snippets.md`를 참고하여 **Phase $ARGUMENTS**를
 | **8** | PWA | 비프음/팬소음 오디오 진단 | 녹음 전송 → 비프음 패턴 분석 결과 |
 | **9** | 공통 | MCP 툴 연동 | AI 응답에 매뉴얼 출처 + 부품 가격 포함 |
 | **10** | 공통 | DB 진단 이력 | 진단 후 DB 레코드 생성 확인 |
+| **11** | 공통 | 크로스 플랫폼 세션 | QR 스캔 → WebSocket 연결 → 통합 진단 결과 수신 |
 
 ---
 
@@ -235,17 +236,15 @@ cd backend && ./mvnw test
 
 # MCP 툴 호출 로그 확인 (Spring Boot 로그)
 # ✅ "Calling tool: get_manual_info" 로그 출력
-# ✅ "Calling tool: get_part_price" 로그 출력
 
 # AI 응답에 툴 결과 포함 확인
 curl -X POST http://localhost:8080/api/diagnosis/hardware \
   -F "image=@mainboard.jpg" \
   -F "symptom=ASUS B760 메인보드 3번 비프음"
 # ✅ 응답에 매뉴얼 출처 URL 포함
-# ✅ 응답에 관련 부품 최저가 포함
 ```
 
-**완료 기준**: AI 응답에 매뉴얼 정보 + 가격 데이터 포함
+**완료 기준**: AI 응답에 매뉴얼 정보 포함
 
 ---
 
@@ -277,3 +276,36 @@ curl http://localhost:8080/api/diagnosis/history/{sessionId}
 - **영상 전송**: 영상 전체 X, 1~2초 간격 핵심 프레임만 추출해서 전송
 - **온도 null**: CPU 온도가 null이면 일부 Windows 환경 WMI 미지원 → 무시하고 진행
 - **환경변수**: `.env`에 `GEMINI_API_KEY` 설정 후 시작
+
+---
+
+### Phase 11 — 크로스 플랫폼 세션
+
+```bash
+# 백엔드 실행 (WebSocket 지원 포함)
+cd backend && ./mvnw spring-boot:run
+
+# 1. Electron 앱 실행 → QR 코드 표시 확인
+npm run electron:dev
+
+# 2. 세션 생성 API 검증
+curl -X POST http://localhost:8080/api/session/create
+# ✅ 기대값: {"sessionId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
+
+# 3. PWA 모바일에서 QR 스캔 후 세션 상태 확인
+curl http://localhost:8080/api/session/{sessionId}/status
+# ✅ {"status": "SW_READY"} 또는 "HW_READY"
+
+# 4. WebSocket 이벤트 수신 확인 (브라우저 콘솔)
+# useSessionSync 훅에서 event 상태 변화 확인
+# ✅ SW_READY → HW_READY → DONE 순서로 이벤트 수신
+
+# 5. 통합 진단 결과 확인
+# ✅ DiagnosisResult 카드에 SW + HW 통합 분석 결과 표시
+
+# 세션 만료 스케줄러 확인 (Spring Boot 로그)
+# ✅ "@Scheduled expireSessions" 로그 1분마다 출력
+```
+
+**완료 기준**: Electron QR 표시 → PWA 스캔 → WebSocket 연결 → 양측 데이터 제욕 → 통합 진단 결과 수신
+

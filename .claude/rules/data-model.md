@@ -23,8 +23,16 @@ public class DiagnosisHistory {
     @Column(columnDefinition = "TEXT")
     private String symptomDescription; // 사용자 입력 증상 텍스트
 
-    // ⚠️ JSONB 주의: String + columnDefinition="jsonb"는 AttributeConverter 필요.
-    // 간단히 쓰려면 "TEXT"로 변경. JSONB 인덱싱이 필요한 경우 JsonbConverter 구현 후 @Convert 적용.
+    // ⚠️ JSONB vs TEXT 결정은 Phase 1 설계 시점에 확정해야 합니다 (나중에 변경 시 ALTER TABLE 마이그레이션 필요).
+    //
+    // [Hibernate 6 타입 충돌 주의]
+    // Spring Boot 3.x 기본 Hibernate 6에서 String 필드 + columnDefinition="jsonb" 조합은 삽입 시 오류 발생:
+    //   ERROR: column "ai_diagnosis" is of type jsonb but expression is of type character varying
+    //   PostgreSQL JDBC 드라이버가 String을 character varying으로 추론하기 때문입니다.
+    //
+    // 선택지:
+    //   A) columnDefinition = "TEXT" 로 변경 (권장 — 단순, JSONB 인덱싱 불필요하면 충분)
+    //   B) AttributeConverter 구현 후 @Convert 적용 (JSONB 인덱싱이 필요한 경우)
     @Column(columnDefinition = "jsonb")
     private String aiDiagnosis;        // JSON { cause, solution, parts, confidence }
 
@@ -127,13 +135,58 @@ CREATE TABLE solution_knowledge (
 ```json
 {
   "cause": "RAM 접촉 불량으로 추정됩니다",
-  "solution": "1. PC 전원 차단 후 RAM을 슬롯에서 분리\n2. 금색 단자를 지우개로 닦기\n3. 딸깍 소리가 날 때까지 재삽입",
-  "parts": ["RAM"],
-  "confidence": 0.87,
-  "requiresProfessional": false,
-  "estimatedCost": {
-    "diy": 0,
-    "professional": 30000
-  }
+  "solution": "1. PC 전원 차단 후 RAM을 슬롯에서 분리
+2. 금색 단자를 지우개로 닦기
+3. 딸깍 소리가 날 때까지 재삽입",
+  "confidence": 0.87
 }
+```
+
+---
+
+## DiagnosisSession.java
+
+```java
+@Entity
+@Table(name = "diagnosis_session")
+@Getter @Builder
+@NoArgsConstructor @AllArgsConstructor
+public class DiagnosisSession {
+
+    @Id
+    private String sessionId;          // UUID — QR 코드에 인코딩
+
+    @Enumerated(EnumType.STRING)
+    private SessionStatus status;      // WAITING / SW_READY / HW_READY / DIAGNOSING / DONE
+
+    @Column(columnDefinition = "TEXT")
+    private String swSnapshot;         // Electron SW 스냅샷 (JSON)
+
+    @Column(columnDefinition = "TEXT")
+    private String hwFrames;           // PWA HW 프레임 (Base64 JSON 배열)
+
+    @Column(columnDefinition = "TEXT")
+    private String diagnosisResult;    // 통합 진단 결과
+
+    private LocalDateTime expiresAt;   // 생성 후 5분 만료
+
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+
+    public enum SessionStatus {
+        WAITING, SW_READY, HW_READY, DIAGNOSING, DONE
+    }
+}
+```
+
+```sql
+CREATE TABLE diagnosis_session (
+    session_id         VARCHAR PRIMARY KEY,
+    status             VARCHAR NOT NULL DEFAULT 'WAITING',
+    sw_snapshot        TEXT,
+    hw_frames          TEXT,
+    diagnosis_result   TEXT,
+    expires_at         TIMESTAMP NOT NULL,
+    created_at         TIMESTAMP DEFAULT now()
+);
 ```
