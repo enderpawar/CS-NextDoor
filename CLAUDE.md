@@ -17,7 +17,7 @@
 |---|---|---|
 | **배포** | 브라우저 PWA | Electron 앱 (.exe / .dmg) |
 | **진단 대상** | **하드웨어** 물리적 문제 | **소프트웨어** 시스템 문제 |
-| **입력** | 카메라 + 마이크 | OS 시스템 데이터 자동 수집 |
+| **입력** | 카메라 + 마이크 | OS 시스템 데이터 자동 수집 + 증상 텍스트 + 클립보드 이미지 붙여넣기 |
 | **진단 예시** | 커패시터 불량, 비프음, LED 패턴 | CPU 과부하, 메모리 누수, BSOD 이력 |
 | **핵심 기술** | OpenCV.js + MediaRecorder + Gemini Vision | systeminformation + Event Log + Gemini |
 

@@ -56,6 +56,15 @@ curl "https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY"
 - Electron 앱 오리진 = `app://` 또는 `file://`
 - Spring Boot CORS 설정에 추가: `@CrossOrigin(origins = {"http://localhost:3000", "app://*", "file://*"})`
 
+### [ ] 7-0. 클립보드 이미지 붙여넣기 IPC (Phase 2 전)
+- 증상 입력창에서 Ctrl+V로 스크린샷/사진 첨부 지원
+- **렌더러(Web API 방식)**: `paste` 이벤트 → `e.clipboardData.items`에서 `image/*` 추출 → `File` → Base64
+- **대안(Electron API)**: `preload.js`에 `readClipboardImage` 노출 → `ipcMain.handle('clipboard-image', () => clipboard.readImage().toDataURL())`
+- 권장: Web API 방식 우선 (IPC 불필요). Electron `clipboard` 모듈은 `nativeImage` 형식 처리 시에만 사용
+- 이미지 첨부 시 입력창 하단에 썸네일 미리보기 표시
+- 진단 payload: 텍스트 증상과 함께 `clipboardImage: base64String` 필드로 전송 → 백엔드에서 Gemini multipart 요청에 포함
+- 첨부 이미지는 `/api/diagnosis/hypotheses` 요청 body에 포함 (별도 업로드 엔드포인트 불필요)
+
 ### [ ] 7. Electron IPC 리스너 React Strict Mode 이중 등록 (Phase 2 전)
 - React 18 Strict Mode에서 `useEffect`가 2회 실행 → `ipcRenderer.on()`이 이중 등록됨
 - `preload.js`의 `onSystemUpdate` 패턴은 `ipcRenderer.on()` 사용 → 콜백이 2번 호출됨
@@ -209,7 +218,7 @@ curl "https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY"
 | Phase | 확인 항목 |
 |---|---|
 | **1** | **API 비용 쿼터 설계**, Gemini 모델 접근 권한, JSONB vs TEXT 결정, extractText null 방어 |
-| **2** | Electron CORS `app://`, IPC Strict Mode 이중 등록 |
+| **2** | Electron CORS `app://`, IPC Strict Mode 이중 등록, **클립보드 이미지 붙여넣기** |
 | **3** | CPU 온도 null → Gemini 프롬프트 처리, **GPU 데이터 한계 명시** |
 | **4** | PowerShell async 변환 + JSON 배열 정규화, **macOS log 대체 수집** |
 | **5** | **HypothesisTracker + 수동 HW 전환**, **재현 실패 → PatternSelector**, **DiagnosisConfidence UI**, **복합 원인 계속 진단**, 베이스라인 이상 감지 |

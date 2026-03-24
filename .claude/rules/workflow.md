@@ -12,7 +12,7 @@ sequenceDiagram
     participant MCP
 
     alt PC 정상 부팅 — SW 진단
-        User->>Electron: ① 증상 텍스트 입력
+        User->>Electron: ① 증상 텍스트 입력 (Ctrl+V로 클립보드 이미지 첨부 가능)
         Electron->>Electron: 스냅샷 수집 + BIOS 제조사 자동 감지
         Electron->>Spring: POST /api/diagnosis/hypotheses {symptom, systemSnapshot}
         Spring->>Gemini: 증상 + 스냅샷 분석
