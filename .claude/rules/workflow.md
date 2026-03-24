@@ -38,7 +38,7 @@ sequenceDiagram
                 Gemini->>Spring: 가설 확정 + 신뢰도%
                 Spring->>User: ⑤ SW 결과 + DiagnosisConfidence 표시
             else 증상 재현 안 됨
-                Electron->>Spring: GET /api/diagnosis/patterns {eventLog}
+                Electron->>Spring: POST /api/diagnosis/patterns {eventLog}
                 Spring->>User: PatternSelector — 이벤트 로그 유사 패턴 제안
                 User->>Spring: 패턴 선택 → POST /api/diagnosis/hypotheses (재진단)
             end

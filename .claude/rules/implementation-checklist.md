@@ -156,7 +156,7 @@ curl "https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY"
 - QR 표시 화면에 만료 카운트다운 타이머 표시 (5:00 → 0:00)
 - 만료 1분 전 경고: "1분 남았어요! 준비가 더 필요하면 연장할 수 있어요"
 - **연장**: `POST /api/session/{id}/extend` → 서버에서 `expiresAt + 5분` 갱신 (1회 한정). 이미 연장한 세션은 재연장 불가
-- **수동 입력 폴백**: QR 스캔이 안 될 때를 위한 "코드 직접 입력" 옵션 → 6자리 단축 코드(sessionId 앞 6자) 입력 → 서버에서 매핑 후 token 재발급
+- **수동 입력 폴백**: QR 스캔이 안 될 때를 위한 "코드 직접 입력" 옵션 → 6자리 단축 코드(서버가 세션 생성 시 별도 생성한 난수, DB `short_code` 컬럼 저장) 입력 → 서버에서 매핑 후 token 재발급
 
 ### [ ] 11-3. 세션 인증 토큰 (Phase 11 전)
 - 현재 sessionId(UUID)만으로 세션 접근 가능 → 타인 세션 하이재킹 위험

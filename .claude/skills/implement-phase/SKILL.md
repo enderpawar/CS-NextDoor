@@ -307,5 +307,5 @@ curl http://localhost:8080/api/session/{sessionId}/status
 # ✅ "@Scheduled expireSessions" 로그 1분마다 출력
 ```
 
-**완료 기준**: Electron QR 표시 → PWA 스캔 → WebSocket 연결 → 양측 데이터 제욕 → 통합 진단 결과 수신
+**완료 기준**: Electron QR 표시 → PWA 스캔 → WebSocket 연결 → 양측 데이터 제출 → 통합 진단 결과 수신
 

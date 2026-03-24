@@ -133,7 +133,7 @@ String authToken = generateSecureToken(); // SecureRandom 8자리 alphanumeric
 ```js
 // 절대값 30fps 기준 X → 베이스라인 대비 20% 이상 드랍 감지
 // 143fps→100fps(30% 드랍) 감지 / 30fps→25fps는 정상으로 처리
-const baseline = fpsHistory.slice(0,-1).reduce((a,b)=>a+b,0) / (history.length-1);
+const baseline = fpsHistory.slice(0,-1).reduce((a,b)=>a+b,0) / (fpsHistory.length-1);
 if ((baseline - currentFps) / baseline > 0.2) { /* 드랍 기록 */ }
 ```
 

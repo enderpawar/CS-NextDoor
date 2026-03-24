@@ -5,7 +5,7 @@
 | POST | `/api/diagnosis/hardware` | PWA (독립 모드) | biosType + 이미지/영상/비프음 → HW 진단 (sessionId 불필요) |
 | POST | `/api/diagnosis/hypotheses` | Electron | 증상 + 스냅샷 → 가설 A/B/C + 신뢰도% |
 | POST | `/api/diagnosis/software` | Electron | baseline + delta → 가설 확정 + 신뢰도% + 해결책 |
-| GET | `/api/diagnosis/patterns` | Electron | 이벤트 로그 기반 유사 패턴 제안 (재현 실패 시) |
+| POST | `/api/diagnosis/patterns` | Electron | 이벤트 로그 기반 유사 패턴 제안 (재현 실패 시) |
 | POST | `/api/diagnosis/{id}/feedback` | 공통 | 해결 여부 피드백 (RESOLVED / UNRESOLVED) |
 | GET | `/api/diagnosis/history/{sessionId}` | 공통 | 진단 이력 조회 |
 | GET | `/api/manual?model=&biosType=&code=` | 공통 | BIOS 제조사 포함 매뉴얼 조회 |

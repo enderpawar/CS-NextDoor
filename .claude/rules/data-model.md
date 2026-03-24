@@ -14,8 +14,8 @@ public class DiagnosisHistory {
     @Id @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(nullable = false)
-    private String sessionId;          // 사용자 세션 UUID
+    @Column(nullable = true)
+    private String sessionId;          // 사용자 세션 UUID (null = PWA 독립 모드)
 
     private String imageUrl;           // 진단에 사용된 이미지 경로
     private String audioUrl;           // 비프음 오디오 경로 (nullable)
@@ -102,7 +102,7 @@ public enum PartCategory {
 -- 진단 이력
 CREATE TABLE diagnosis_history (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id      VARCHAR NOT NULL,
+    session_id      VARCHAR,           -- null = PWA 독립 모드
     image_url       VARCHAR,
     audio_url       VARCHAR,
     symptom_description TEXT,
@@ -168,6 +168,10 @@ public class DiagnosisSession {
     @Column(columnDefinition = "TEXT")
     private String diagnosisResult;    // 통합 진단 결과
 
+    private String authToken;          // SecureRandom 8자리 alphanumeric, 최초 검증 후 null
+    private boolean tokenConsumed;     // 토큰 1회 폐기 추적 (true = 이미 사용됨)
+    private String shortCode;          // 6자리 난수 문자열(000000~999999), 수동 입력 폴백용
+
     private LocalDateTime expiresAt;   // 생성 후 5분 만료
 
     @CreationTimestamp
@@ -186,6 +190,9 @@ CREATE TABLE diagnosis_session (
     sw_snapshot        TEXT,
     hw_frames          TEXT,
     diagnosis_result   TEXT,
+    auth_token         VARCHAR,
+    token_consumed     BOOLEAN DEFAULT FALSE,
+    short_code         CHAR(6),
     expires_at         TIMESTAMP NOT NULL,
     created_at         TIMESTAMP DEFAULT now()
 );

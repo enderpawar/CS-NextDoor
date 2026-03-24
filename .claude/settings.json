@@ -3,8 +3,11 @@
     "allow": [
       "Bash(./mvnw:*)",
       "Bash(npm:*)",
-      "Bash(powershell:*)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+      "Bash(powershell -Command Get-WinEvent*)",
+      "Bash(powershell -Command ConvertTo-Json*)",
+      "Bash(powershell -Command Get-Process*)",
+      "Bash(powershell -ExecutionPolicy Bypass -Command*)"
     ],
     "deny": [
       "Bash(rm -rf /)",
@@ -33,7 +36,7 @@
           {
             "type": "command",
             "shell": "powershell",
-            "command": "$data = $input | ConvertFrom-Json; $f = $data.tool_input.file_path; if ($f -match 'preload\\.js$') { $content = if ($data.tool_input.new_string) { $data.tool_input.new_string } elseif ($data.tool_input.content) { $data.tool_input.content } else { '' }; if ($content -match 'nodeIntegration\\s*:\\s*true|contextIsolation\\s*:\\s*false') { Write-Output '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Electron 보안 설정 변경 차단: contextIsolation:true, nodeIntegration:false 필수\"}}'; exit 2 } }",
+            "command": "$data = $input | ConvertFrom-Json; $f = $data.tool_input.file_path; if ($f -match 'main\\.js$') { $content = if ($data.tool_input.new_string) { $data.tool_input.new_string } elseif ($data.tool_input.content) { $data.tool_input.content } else { '' }; if ($content -match 'nodeIntegration\\s*:\\s*true|contextIsolation\\s*:\\s*false') { Write-Output '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Electron 보안 설정 변경 차단: contextIsolation:true, nodeIntegration:false 필수\"}}'; exit 2 } }",
             "timeout": 5
           }
         ]
@@ -46,7 +49,7 @@
           {
             "type": "command",
             "shell": "powershell",
-            "command": "$data = $input | ConvertFrom-Json; $f = $data.tool_input.file_path; if ($f -match '\\.java$') { Write-Host \"=== Backend Test (triggered by: $f) ===\"; Push-Location backend; .\\.mvnw test -q 2>&1 | Select-Object -Last 40; $ec = $LASTEXITCODE; Pop-Location; if ($ec -ne 0) { exit 2 } } elseif ($f -match '\\.(jsx?|js)$') { Write-Host \"=== Frontend Test (triggered by: $f) ===\"; Push-Location frontend; npm test --watchAll=false --passWithNoTests 2>&1 | Select-Object -Last 40; $ec = $LASTEXITCODE; Pop-Location; if ($ec -ne 0) { exit 2 } }",
+            "command": "$data = $input | ConvertFrom-Json; $f = $data.tool_input.file_path; if ($f -match '\\.java$') { Write-Host \"=== Backend Test (triggered by: $f) ===\"; Push-Location backend; .\\.mvnw test -q 2>&1 | Select-Object -Last 40; $ec = $LASTEXITCODE; Pop-Location; if ($ec -ne 0) { exit 2 } } elseif ($f -match '\\.(jsx?|tsx?)$') { Write-Host \"=== Frontend Test (triggered by: $f) ===\"; npm test --watchAll=false --passWithNoTests 2>&1 | Select-Object -Last 40; if ($LASTEXITCODE -ne 0) { exit 2 } }",
             "asyncRewake": true,
             "timeout": 300,
             "statusMessage": "테스트 실행 중... (실패 시 자동으로 알려드릴게요)"
@@ -72,8 +75,8 @@
           {
             "type": "command",
             "shell": "powershell",
-            "command": "Write-Output '{\"systemMessage\": \"✅ 작업 완료. 전체 테스트 확인: [백엔드] cd backend && .\\mvnw test  |  [프론트] cd frontend && npm test --watchAll=false\"}'",
-            "timeout": 10
+            "command": "Write-Output '{\"systemMessage\": \"✅ 작업 완료. 전체 테스트 확인: [백엔드] cd backend && .\\mvnw test  |  [프론트] npm test --watchAll=false\"}'",
+            "timeout": 5
           }
         ]
       }
