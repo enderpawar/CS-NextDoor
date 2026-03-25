@@ -33,8 +33,8 @@ sequenceDiagram
             alt 증상 재현됨
                 Electron->>Spring: POST /api/diagnosis/software {baseline, delta, hypothesis}
                 Spring->>Gemini: delta 비교
-                Gemini->>MCP: get_manual_info() / get_part_price()
-                MCP->>Gemini: 매뉴얼 + 가격
+                Gemini->>MCP: get_manual_info()
+                MCP->>Gemini: 매뉴얼
                 Gemini->>Spring: 가설 확정 + 신뢰도%
                 Spring->>User: ⑤ SW 결과 + DiagnosisConfidence 표시
             else 증상 재현 안 됨
@@ -68,7 +68,7 @@ sequenceDiagram
     alt 세션 모드 (Electron BIOS 자동 감지)
         PWA->>User: 감지된 BIOS 제조사 표시 (확인만)
     else 독립 모드 또는 감지 실패
-        User->>PWA: BIOS 제조사 수동 선택 (AMI / Award / Phoenix / 기타)
+        User->>PWA: BIOS 제조사 수동 선택 (AMI / Award / Phoenix / 기타) 
     end
 
     PWA->>User: ShootingGuide — 부위별 촬영 다이어그램 + 거리/각도 안내
@@ -80,7 +80,7 @@ sequenceDiagram
     MCP->>Gemini: 제조사 매뉴얼
     Gemini->>Spring: HW 진단 결과 + 신뢰도%
     Spring-->>Electron: WS → DONE (세션 모드)
-    Spring->>User: ⑦ [원인] → [조치] → [비용] + DiagnosisConfidence
+    Spring->>User: ⑦ [원인] → [조치] + DiagnosisConfidence
 
     alt 복합 원인 의심 또는 미해결
         User->>Electron: 역방향 SW 추가 진단 요청

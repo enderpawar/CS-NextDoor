@@ -178,7 +178,7 @@ curl "https://generativelanguage.googleapis.com/v1beta/models?key=YOUR_KEY"
 - `pom.xml` `dependencyManagement`에 `spring-ai-bom` 버전 명시 (`<version>1.0.0</version>`)
 - **MCP Silent Failure**: `@Tool` 등록은 됐지만 AI가 실제로 툴을 호출하지 않는 경우 발생
   - 원인: Gemini Function Calling 스키마와 Spring AI가 생성하는 FunctionDeclaration 불일치
-  - 로그에 에러 없음 — AI 응답에 매뉴얼/가격 정보 포함 여부로만 확인 가능
+  - 로그에 에러 없음 — AI 응답에 매뉴얼 정보 포함 여부로만 확인 가능
   - 해결: System Prompt에 툴 호출 조건 명시 (`"증상에 관련 부품 모델명이 있으면 반드시 get_manual_info()를 먼저 호출"`)
 
 

@@ -149,7 +149,7 @@ public record Hypothesis(
 
 ---
 
-## Phase 5 — SymptomInput.jsx (증상 입력 + 스냅샷 첨부)
+## Phase 5 — SymptomInput.tsx (증상 입력 + 스냅샷 첨부)
 
 ```jsx
 import { useState } from 'react';
@@ -195,7 +195,7 @@ export default function SymptomInput({ systemSnapshot, onHypothesesReady }) {
 
 ---
 
-## Phase 5 — HypothesisList.jsx (가설 카드 + 트랙 분기)
+## Phase 5 — HypothesisList.tsx (가설 카드 + 트랙 분기)
 
 ```jsx
 import { useState } from 'react';
@@ -244,7 +244,7 @@ export default function HypothesisList({ hypotheses, systemSnapshot }) {
 
 ---
 
-## Phase 5 — ReproductionMode.jsx (재현 모니터링)
+## Phase 5 — ReproductionMode.tsx (재현 모니터링)
 
 ```jsx
 import { useState } from 'react';
@@ -366,81 +366,141 @@ export function useReproductionMonitor() {
 
 ---
 
-## Phase 7 — VideoAnalysis.jsx (영상+오디오 통합 촬영)
+## Phase 7 — VideoAnalysis.tsx (영상+오디오 통합 촬영)
+
+> **[!NOTE]** 영상(프레임 배열)과 오디오(Blob)를 단일 액션으로 동시 수집.
+> 비프음은 부팅 직후 발생하므로 촬영 시작 전 PC 전원을 켜는 게 아니라, **촬영 시작 후 PC 전원을 켜도록** UX 안내 문구가 필요.
+
+> **[!WARNING]** iOS Safari는 `audio/webm`을 지원하지 않습니다. `MediaRecorder.isTypeSupported` 분기로 `audio/mp4` 폴백 처리됨.
+> Gemini API 전송 시 mime type도 실제 녹음 포맷과 반드시 일치시켜야 합니다.
+
+프레임 선별 전략 변경:
+- **기존**: 1.5초 간격으로 10개 캡처 → 전부 전송
+- **변경**: 1초 간격으로 15개 캡처 → 흔들림 프레임 자동 제외(Laplacian) → 이상도 상위 5개만 Gemini 전송
+
+`onFramesReady(frames, audioBlob, mimeType, scoreSummary)`
+- `frames`: Base64 JPEG 배열 (최대 5개, 이상도 내림차순)
+- `scoreSummary`: `{ total, sent, blurDiscarded, max, avg, frameScores }` — 발표용 정량 데이터
 
 ```jsx
 import { useRef, useState, useCallback } from 'react';
+import { processFrame } from '../mobile/CameraView';
 
-const INTERVAL_SEC = 1.5;
-const MAX_FRAMES = 10;
+const CAPTURE_TOTAL = 15;
+const SEND_TOP      = 5;
+const INTERVAL_SEC  = 1.0;
 
-// 영상 촬영과 오디오 녹음을 동시에 수행
-// 비프음은 부팅 순간 단 한 번 울리므로 촬영 시작과 동시에 오디오도 함께 수집해야 포착 가능
-// onFramesReady(frames, audioBlob) — audioBlob은 비프음/팬소음 포함, 없으면 null
 export default function VideoAnalysis({ onFramesReady }) {
-  const videoRef = useRef(null);
-  const [recording, setRecording] = useState(false);
-  const [frameCount, setFrameCount] = useState(0);
-  const framesRef = useRef([]);
-  const intervalRef = useRef(null);
-  const canvasRef = useRef(document.createElement('canvas'));
+  const videoRef         = useRef(null);
+  const canvasRef        = useRef(document.createElement('canvas'));
+  const intervalRef      = useRef(null);
   const audioRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+  const audioChunksRef   = useRef([]);
+  const candidatesRef    = useRef([]); // { dataUrl, qualityScore, blurScore }
+  // ref로 관리 — setInterval 클로저 stale 방지
+  const blurCountRef     = useRef(0);
+  const readyCountRef    = useRef(0);
+
+  const [recording, setRecording]       = useState(false);
+  const [captureCount, setCaptureCount] = useState(0);
+  const [blurCount, setBlurCount]       = useState(0); // 표시 전용
 
   const stopRecording = useCallback(() => {
     clearInterval(intervalRef.current);
     audioRecorderRef.current?.stop();
     videoRef.current?.srcObject?.getTracks().forEach(t => t.stop());
     setRecording(false);
-    // audioBlob은 recorder.onstop 콜백에서 비동기로 전달됨
   }, []);
 
-  const captureFrame = useCallback(() => {
-    const video = videoRef.current;
+  const captureAndScore = useCallback(() => {
+    const video  = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || video.readyState < 2) return;
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    framesRef.current.push(canvas.toDataURL('image/jpeg', 0.7));
-    setFrameCount(framesRef.current.length);
-
-    if (framesRef.current.length >= MAX_FRAMES) {
-      stopRecording();
+    // 크기가 변경된 경우에만 재설정 — 동일값 대입도 canvas buffer flush 유발
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
     }
-  }, [stopRecording]);
+
+    const result = processFrame(video, canvas, readyCountRef.current);
+
+    if (result.guidance === 'stabilize') {
+      blurCountRef.current += 1;
+      setBlurCount(blurCountRef.current); // 표시 동기화
+    } else {
+      if (result.isReadyToCapture) readyCountRef.current = 0; // 자동 촬영 후 리셋
+      else readyCountRef.current = result.guidance === 'ready' ? readyCountRef.current + 1 : 0;
+
+      candidatesRef.current.push({
+        dataUrl: canvas.toDataURL('image/jpeg', 0.7),
+        qualityScore: result.qualityScore,
+        blurScore: result.blurScore,
+      });
+      setCaptureCount(c => c + 1);
+    }
+
+    if (candidatesRef.current.length + blurCountRef.current >= CAPTURE_TOTAL) stopRecording();
+  }, [stopRecording]); // blurCountRef는 ref이므로 의존성 불필요
 
   const start = async () => {
-    framesRef.current = [];
+    candidatesRef.current  = [];
     audioChunksRef.current = [];
-    setFrameCount(0);
+    blurCountRef.current   = 0;
+    readyCountRef.current  = 0;
+    setCaptureCount(0);
+    setBlurCount(0);
 
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment' },
       audio: true,
     });
-
     videoRef.current.srcObject = stream;
     setRecording(true);
-    intervalRef.current = setInterval(captureFrame, INTERVAL_SEC * 1000);
+    intervalRef.current = setInterval(captureAndScore, INTERVAL_SEC * 1000);
 
     const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
     const audioRecorder = new MediaRecorder(stream, { mimeType });
     audioRecorder.ondataavailable = e => audioChunksRef.current.push(e.data);
     audioRecorder.onstop = () => {
       const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-      onFramesReady(framesRef.current, audioBlob);
+
+      // qualityScore 내림차순 → 상위 SEND_TOP개 선택
+      const sorted   = [...candidatesRef.current].sort((a, b) => b.qualityScore - a.qualityScore);
+      const selected = sorted.slice(0, SEND_TOP);
+      const scores   = candidatesRef.current.map(f => f.qualityScore);
+
+      const scoreSummary = {
+        total: candidatesRef.current.length,
+        sent: selected.length,
+        blurDiscarded: blurCountRef.current, // ref 참조 — stale 없음
+        max: scores.length ? Math.max(...scores) : 0,
+        avg: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+        frameScores: sorted.map(f => ({ score: f.qualityScore.toFixed(1), blur: f.blurScore.toFixed(0) })),
+      };
+
+      onFramesReady(selected.map(f => f.dataUrl), audioBlob, mimeType, scoreSummary);
     };
     audioRecorder.start();
     audioRecorderRef.current = audioRecorder;
   };
 
+  const progress = Math.round(((captureCount + blurCount) / CAPTURE_TOTAL) * 100);
+
   return (
     <div>
       <video ref={videoRef} autoPlay muted playsInline style={{ width: '100%' }} />
       {recording && (
-        <p>{frameCount}/{MAX_FRAMES} 프레임 수집 중... (매 {INTERVAL_SEC}초 샘플링 · 오디오 동시 녹음)</p>
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+            <span>선명 프레임 {captureCount}개</span>
+            <span>흔들림 제외 {blurCount}개</span>
+            <span>{progress}%</span>
+          </div>
+          <p style={{ fontSize: 12, color: '#6b7684' }}>
+            OpenCV 채점 중 — 이상도 상위 {SEND_TOP}개 프레임을 AI로 전송합니다
+          </p>
+        </div>
       )}
       {!recording
         ? <button onClick={start}>🎥 촬영 시작 (영상+오디오)</button>
@@ -450,13 +510,6 @@ export default function VideoAnalysis({ onFramesReady }) {
   );
 }
 ```
-
-> **[!NOTE]** 영상(프레임 배열)과 오디오(Blob)를 단일 액션으로 동시 수집.
-> 비프음은 부팅 직후 발생하므로 촬영 시작 전 PC 전원을 켜는 게 아니라, **촬영 시작 후 PC 전원을 켜도록** UX 안내 문구가 필요.
-> `onFramesReady(frames, audioBlob)` — 부모 컴포넌트에서 두 데이터를 함께 `/api/diagnosis/hardware`로 전송.
-
-> **[!WARNING]** iOS Safari는 `audio/webm`을 지원하지 않습니다. `MediaRecorder.isTypeSupported` 분기로 `audio/mp4` 폴백 처리됨.
-> Gemini API 전송 시 mime type도 실제 녹음 포맷과 반드시 일치시켜야 합니다.
 
 ---
 
@@ -471,6 +524,7 @@ function createWindow() {
     width: 1280,
     height: 800,
     webPreferences: {
+      // TS 빌드 후 .js로 컴파일됨
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,   // 보안: 필수
       nodeIntegration: false,   // 보안: 필수
@@ -582,7 +636,7 @@ export function useSystemInfo() {
 
 ---
 
-## Phase 2 — useRuntimeMode.js (Electron/PWA 감지)
+## Phase 2 — useRuntimeMode.ts (Electron/PWA 감지)
 
 ```js
 // preload.js가 window.electronAPI를 주입 → 존재 여부로 판별
@@ -594,7 +648,7 @@ export function useRuntimeMode() {
 
 ---
 
-## Phase 2 — ScreenCapture.jsx (Desktop 화면 캡처)
+## Phase 2 — ScreenCapture.tsx (Desktop 화면 캡처)
 
 ```jsx
 import { useRef, useState } from 'react';
@@ -630,10 +684,10 @@ export default function ScreenCapture({ onCapture }) {
     <div className="screen-capture">
       <video ref={videoRef} autoPlay muted style={{ width: '100%' }} />
       {!capturing
-        ? <button onClick={startCapture}>🖥️ 화면 공유 시작</button>
+        ? <button onClick={startCapture}> 화면 공유 시작</button>
         : <>
-            <button onClick={takeSnapshot}>📸 스냅샷 진단</button>
-            <button onClick={stopCapture}>⏹️ 중지</button>
+            <button onClick={takeSnapshot}> 스냅샷 진단</button>
+            <button onClick={stopCapture}>⏹ 중지</button>
           </>
       }
     </div>
@@ -643,7 +697,7 @@ export default function ScreenCapture({ onCapture }) {
 
 ---
 
-## Phase 3 — useFpsMonitor.js (실시간 FPS + 드랍 감지)
+## Phase 3 — useFpsMonitor.ts (실시간 FPS + 드랍 감지)
 
 ```js
 import { useRef, useState, useCallback } from 'react';
@@ -721,7 +775,7 @@ export function useFpsMonitor() {
 
 ---
 
-## Phase 3 — FpsDashboard.jsx
+## Phase 3 — FpsDashboard.tsx
 
 ```jsx
 import { useEffect } from 'react';
@@ -904,7 +958,7 @@ public class DiagnosisController {
 }
 ```
 
-## Phase 6 — CameraView.jsx (기본)
+## Phase 6 — CameraView.tsx (기본)
 
 ```jsx
 import { useRef, useState, useEffect } from 'react';
@@ -952,7 +1006,7 @@ export default function CameraView({ onCapture }) {
 
 ---
 
-## Phase 6 — useOpenCV.js
+## Phase 6 — useOpenCV.ts
 
 ```js
 import { useEffect, useState } from 'react';
@@ -975,46 +1029,225 @@ export function useOpenCV() {
 }
 ```
 
-## Phase 2 — OpenCV 오버레이 루프 (CameraView.jsx 확장)
+## Phase 7 — OpenCV 실시간 촬영 가이드 (CameraView.tsx 확장)
 
-> **[!WARNING]** `[src, gray, edges, contours, hierarchy].forEach(m => m.delete())`는 예외 발생 시 실행되지 않습니다.
-> `findContours` 실패 등 예외 발생 시 WASM 힙에 Mat 5개가 누수됩니다. JS GC는 WASM 힙을 회수하지 못하므로 반드시 `try/finally`로`.delete()`를 보장하세요.
+> **[!WARNING]** Mat 객체는 예외 발생 시에도 반드시 해제해야 합니다. JS GC는 WASM 힙을 회수하지 못하므로 반드시 `try/finally`로 `.delete()`를 보장하세요.
 
-```js
-// requestAnimationFrame 루프에서 매 프레임 실행
-function processFrame(videoEl, canvasEl) {
-  const cv = window.cv;
-  const ctx = canvasEl.getContext('2d');
+### 설계 방향
 
-  ctx.drawImage(videoEl, 0, 0);
-  const imageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+OpenCV를 "조용한 프레임 필터"가 아닌 **사용자에게 직접 보이는 실시간 촬영 가이드**로 사용합니다.
+발표 시 "OpenCV로 이걸 했습니다"가 화면에 보여야 합니다.
 
-  const src = cv.matFromImageData(imageData);
-  const gray = new cv.Mat();
-  const edges = new cv.Mat();
-  const contours = new cv.MatVector();
-  const hierarchy = new cv.Mat();
+### guidance 상태 흐름
 
-  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-  cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
-  cv.Canny(gray, edges, 50, 150);
-  cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+```
+카메라 켜짐
+    ↓
+[CLAHE → Laplacian]  blurScore < 100  → 'stabilize' → "카메라를 고정해 주세요"
+    ↓ 선명
+[Canny → findContours]  감지 없음      → 'no_target' → "PC 내부를 향해주세요"
+    ↓ 감지됨
+[최대 컨투어 면적]  < 프레임의 5%      → 'too_far'   → "더 가까이 찍어주세요"
+    ↓ 충분
+[3프레임 연속 통과]                    → 'ready'     → "좋아요! 자동 촬영합니다"
+```
 
-  for (let i = 0; i < contours.size(); i++) {
-    const rect = cv.boundingRect(contours.get(i));
-    if (rect.width > 100 && rect.height > 100) {
-      ctx.strokeStyle = '#00FF88';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
-      ctx.fillStyle = '#00FF88';
-      ctx.font = '14px sans-serif';
-      ctx.fillText('부품 감지됨', rect.x, rect.y - 6);
-    }
-  }
+`ready` 상태가 **3프레임 연속** 유지되면 자동 촬영 트리거 — 사용자가 버튼을 누를 필요 없음.
 
-  [src, gray, edges, contours, hierarchy].forEach(m => m.delete());
+### 반환 타입
+
+```ts
+type Guidance = 'stabilize' | 'no_target' | 'too_far' | 'ready';
+
+interface FrameAnalysis {
+  guidance: Guidance;
+  guidanceText: string;
+  qualityScore: number;      // 0~100, 종합 품질 점수 (선명도 50% + 커버리지 50%)
+  blurScore: number;
+  coverageRatio: number;     // 최대 컨투어 면적 / 전체 프레임 면적
+  isReadyToCapture: boolean; // guidance === 'ready'
 }
 ```
+
+### processFrame 구현
+
+```ts
+declare const cv: any; // OpenCV.js WASM — 공식 TS 타입 미지원
+
+const BLUR_THRESHOLD    = 100;  // Laplacian 분산 기준값
+const COVERAGE_MIN      = 0.05; // 최대 컨투어가 프레임의 5% 이상이어야 "충분히 가까움"
+const READY_FRAMES_NEEDED = 3;  // 자동 촬영까지 연속 통과 필요 프레임 수
+
+// 연속 ready 카운터 — processFrame 외부에서 관리 (useRef)
+// readyCountRef: React.MutableRefObject<number>
+
+function processFrame(
+  videoEl: HTMLVideoElement,
+  canvasEl: HTMLCanvasElement,
+  readyCount: number,         // 현재 연속 ready 프레임 수
+): FrameAnalysis {
+  const ctx = canvasEl.getContext('2d')!;
+  ctx.drawImage(videoEl, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+  const frameArea = canvasEl.width * canvasEl.height;
+
+  const src       = cv.matFromImageData(imageData);
+  const gray      = new cv.Mat();
+  const blurred   = new cv.Mat();
+  const edges     = new cv.Mat();
+  const contours  = new cv.MatVector();
+  const hierarchy = new cv.Mat();
+  const lap       = new cv.Mat();
+  const mean      = new cv.Mat();
+  const stddev    = new cv.Mat();
+
+  try {
+    // ── Step 1: 그레이스케일 + CLAHE (조명 불균일 보정) ─────────────────
+    // CLAHE는 파라미터 고정 → 구현 시 useRef로 1회 생성 후 재사용, 언마운트 시 delete()
+    // (스니펫에서는 단순성을 위해 매 프레임 생성으로 표기)
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    const clahe = new cv.CLAHE(2.0, new cv.Size(8, 8));
+    clahe.apply(gray, gray);
+    clahe.delete();
+
+    // ── Step 2: Laplacian 분산 — 블러 감지 ──────────────────────────────
+    // 분산이 작을수록 흐릿한 프레임 (고주파 성분 부족)
+    cv.Laplacian(gray, lap, cv.CV_32F);
+    cv.meanStdDev(lap, mean, stddev);
+    const blurScore = stddev.doubleAt(0, 0) ** 2;
+
+    if (blurScore < BLUR_THRESHOLD) {
+      drawGuidanceOverlay(ctx, canvasEl, 'stabilize', '카메라를 고정해 주세요', 0);
+      return { guidance: 'stabilize', guidanceText: '카메라를 고정해 주세요',
+               qualityScore: 0, blurScore, coverageRatio: 0, isReadyToCapture: false };
+    }
+
+    // ── Step 3: GaussianBlur + Canny + findContours ──────────────────────
+    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+    cv.Canny(blurred, edges, 50, 150);
+    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    if (contours.size() === 0) {
+      drawGuidanceOverlay(ctx, canvasEl, 'no_target', 'PC 내부를 향해주세요', 0);
+      return { guidance: 'no_target', guidanceText: 'PC 내부를 향해주세요',
+               qualityScore: 0, blurScore, coverageRatio: 0, isReadyToCapture: false };
+    }
+
+    // ── Step 4: 최대 컨투어 면적으로 거리 판단 ──────────────────────────
+    // 가장 큰 컨투어 = 가장 가까운 주요 부품 영역
+    let maxArea = 0;
+    let maxIdx  = 0;
+    for (let i = 0; i < contours.size(); i++) {
+      const area = cv.contourArea(contours.get(i));
+      if (area > maxArea) { maxArea = area; maxIdx = i; }
+    }
+    const coverageRatio = maxArea / frameArea;
+
+    if (coverageRatio < COVERAGE_MIN) {
+      drawGuidanceOverlay(ctx, canvasEl, 'too_far', '더 가까이 찍어주세요', 0);
+      return { guidance: 'too_far', guidanceText: '더 가까이 찍어주세요',
+               qualityScore: 0, blurScore, coverageRatio, isReadyToCapture: false };
+    }
+
+    // ── Step 5: 촬영 품질 점수 계산 ─────────────────────────────────────
+    // 선명도 50% + 커버리지 50%
+    const sharpScore    = Math.min(blurScore / 500, 1.0);   // 500을 만점 기준으로 정규화
+    const coverageScore = Math.min(coverageRatio / 0.3, 1.0); // 30% 이상이면 만점
+    const qualityScore  = Math.round((sharpScore * 0.5 + coverageScore * 0.5) * 100);
+
+    // ── Step 6: 오버레이 렌더링 ─────────────────────────────────────────
+    // 모든 컨투어 박스 표시
+    for (let i = 0; i < contours.size(); i++) {
+      const rect = cv.boundingRect(contours.get(i));
+      if (rect.width < 60 || rect.height < 60) continue;
+      const isMain = (i === maxIdx);
+      ctx.strokeStyle = isMain ? '#3182f6' : '#05c46b';
+      ctx.lineWidth   = isMain ? 3 : 1;
+      ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    }
+
+    // ready 상태: 녹색 테두리 + 카운트다운 표시
+    const newReadyCount = readyCount + 1;
+    const isReadyToCapture = newReadyCount >= READY_FRAMES_NEEDED;
+
+    if (isReadyToCapture) {
+      // 화면 전체 녹색 테두리 — "촬영 완료" 시각적 피드백
+      ctx.strokeStyle = '#05c46b';
+      ctx.lineWidth   = 8;
+      ctx.strokeRect(4, 4, canvasEl.width - 8, canvasEl.height - 8);
+    }
+
+    drawGuidanceOverlay(ctx, canvasEl, 'ready',
+      isReadyToCapture ? '촬영 완료!' : `준비 중 (${newReadyCount}/${READY_FRAMES_NEEDED})`,
+      qualityScore);
+
+    return { guidance: 'ready', guidanceText: '좋아요!',
+             qualityScore, blurScore, coverageRatio, isReadyToCapture };
+
+  } finally {
+    [src, gray, blurred, edges, contours, hierarchy, lap, mean, stddev].forEach(m => m.delete());
+  }
+}
+
+// ── HUD 오버레이 헬퍼 ────────────────────────────────────────────────────────
+function drawGuidanceOverlay(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  guidance: Guidance,
+  text: string,
+  qualityScore: number,
+) {
+  const color: Record<Guidance, string> = {
+    stabilize: '#ff5e57',
+    no_target: '#ff9f43',
+    too_far:   '#ff9f43',
+    ready:     '#05c46b',
+  };
+
+  // 상단 HUD 배경
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, canvas.width, 48);
+
+  // 가이드 텍스트
+  ctx.fillStyle = color[guidance];
+  ctx.font      = 'bold 16px sans-serif';
+  ctx.fillText(text, 12, 22);
+
+  // 품질 점수 바 (ready 상태에서만 표시)
+  if (guidance === 'ready' && qualityScore > 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(12, 30, canvas.width - 24, 10);
+    ctx.fillStyle = color.ready;
+    ctx.fillRect(12, 30, (canvas.width - 24) * (qualityScore / 100), 10);
+    ctx.fillStyle = '#fff';
+    ctx.font      = '11px monospace';
+    ctx.fillText(`품질 ${qualityScore}%`, canvas.width - 60, 39);
+  }
+}
+```
+
+### VideoAnalysis.tsx 변경 — 자동 촬영 트리거
+
+```ts
+// rAF 루프에서 readyCountRef를 관리하고 isReadyToCapture 시 자동 촬영
+const readyCountRef = useRef(0);
+
+// processFrame 호출 후
+const result = processFrame(video, canvas, readyCountRef.current);
+
+if (result.guidance === 'ready') {
+  readyCountRef.current += 1;
+  if (result.isReadyToCapture) {
+    readyCountRef.current = 0; // 리셋
+    captureCurrentFrame();     // 자동 촬영
+  }
+} else {
+  readyCountRef.current = 0;   // ready 끊기면 초기화
+}
+```
+
+> **[!NOTE]** 자동 촬영 후 guidance가 다시 'ready'가 되어야 다음 프레임 촬영 가능.
+> 동일 구도 중복 촬영 방지를 위해 촬영 후 1.5초 쿨다운 권장.
 
 ---
 
@@ -1052,8 +1285,7 @@ public class RepairAgent {
         당신은 '옆집 컴공생' AI입니다.
         말투: 친근한 공대생처럼. 기술 근거는 정확하게.
         답변 형식: "여기[부품/프로세스]에 문제가 있는 것 같아요. 해결방법은 ~~ 입니다."
-        가격/비용 정보는 포함하지 않음.
-        """;
+""";
 
     public String diagnoseWithTools(String base64Image, String symptom) {
         // Spring AI 1.x: @Tool 어노테이션이 달린 빈 객체를 직접 전달
@@ -1078,10 +1310,10 @@ public class RepairAgent {
 
 ---
 
-## Phase 8 — AudioCapture.jsx (화면 없음 전용 — 오디오만 녹음)
+## Phase 8 — AudioCapture.tsx (화면 없음 전용 — 오디오만 녹음)
 
 > **[!NOTE]** 이 컴포넌트는 PC가 완전히 켜지지 않아 카메라로 찍을 화면이 없는 경우 전용입니다.
-> 일반적인 비프음/팬소음 진단은 `VideoAnalysis.jsx`의 통합 촬영을 사용하세요.
+> 일반적인 비프음/팬소음 진단은 `VideoAnalysis.tsx`의 통합 촬영을 사용하세요.
 > 사용 케이스: 전원 버튼을 눌러도 아무 화면이 없고 비프음만 들리는 상황.
 
 > **[!WARNING]** iOS Safari는 `audio/webm`을 지원하지 않습니다.
@@ -1330,7 +1562,7 @@ public class SessionController {
 
 ---
 
-## Phase 11 — QRDisplay.jsx (Electron — QR 생성 + 스캔 대기)
+## Phase 11 — QRDisplay.tsx (Electron — QR 생성 + 스캔 대기)
 
 ```jsx
 import { useEffect, useState } from "react";
@@ -1390,7 +1622,7 @@ export default function QRDisplay({ onSessionReady }) {
 
 ---
 
-## Phase 11 — QRScanner.jsx (PWA — QR 스캔 + 세션 참여)
+## Phase 11 — QRScanner.tsx (PWA — QR 스캔 + 세션 참여)
 
 ```jsx
 import { useEffect, useRef, useState } from "react";

@@ -8,6 +8,7 @@
 @.claude/rules/implementation-checklist.md
 @.claude/rules/workflow.md
 @.claude/rules/api-endpoints.md
+@.claude/rules/figma-design-system.md
 
 ---
 
@@ -30,6 +31,7 @@
 | Layer | Mobile PWA | Desktop Electron |
 |---|---|---|
 | Shell | React PWA (manifest + SW) | Electron 28+ (Node.js 20) |
+| **언어** | **TypeScript (`.ts` / `.tsx`)** | **TypeScript (`.ts`) — main/preload 포함** |
 | 하드웨어 입력 | `getUserMedia` (카메라/마이크) | — |
 | 시스템 수집 | — | `systeminformation` + `child_process` |
 | 이미지 처리 | OpenCV.js (WASM) | — |
@@ -43,24 +45,26 @@
 
 ```
 nextdoor-cs/
-├── electron/main.js, preload.js
-│   └── modules/ systemMonitor, processAnalyzer, eventLogReader, diskHealth
-├── pwa/public/ manifest.json, sw.js
+├── electron/main.ts, preload.ts
+│   └── modules/ systemMonitor.ts, processAnalyzer.ts, eventLogReader.ts, diskHealth.ts
+├── pwa/public/ manifest.json, sw.js        ← sw.js는 Service Worker — TS 빌드 대상 제외 
 ├── src/
+│   ├── types/                              ← 공유 타입 정의 (IPC, API 응답, 진단 도메인)
+│   │   └── index.ts
 │   ├── components/
-│   │   ├── desktop/  SystemDashboard, ProcessList, EventLogViewer, DiskHealthCard
-│   │   │             HypothesisTracker, PatternSelector
-│   │   ├── mobile/   CameraView, VideoAnalysis, AudioCapture
-│   │   │             BiosTypeSelector, ShootingGuide
-│   │   └── shared/   DiagnosisResult, DiagnosisConfidence, SessionManager
-│   ├── hooks/ useRuntimeMode, useSystemInfo, useOpenCV, useFpsMonitor
-│   │          useReproductionMonitor, usePostDiagnosis
-│   └── api/diagnosisApi.js
+│   │   ├── desktop/  SystemDashboard.tsx, ProcessList.tsx, EventLogViewer.tsx, DiskHealthCard.tsx
+│   │   │             HypothesisTracker.tsx, PatternSelector.tsx
+│   │   ├── mobile/   CameraView.tsx, VideoAnalysis.tsx, AudioCapture.tsx
+│   │   │             BiosTypeSelector.tsx, ShootingGuide.tsx
+│   │   └── shared/   DiagnosisResult.tsx, DiagnosisConfidence.tsx, SessionManager.tsx
+│   ├── hooks/ useRuntimeMode.ts, useSystemInfo.ts, useOpenCV.ts, useFpsMonitor.ts
+│   │          useReproductionMonitor.ts, usePostDiagnosis.ts
+│   └── api/diagnosisApi.ts
 └── backend/src/main/java/com/nextdoorcs/
     ├── controller/ DiagnosisController, SessionController
     ├── service/    DiagnosisService, GeminiService
     ├── agent/      RepairAgent
-    ├── mcp/        ManualToolProvider, PriceToolProvider
+    ├── mcp/        ManualToolProvider
     └── entity/     DiagnosisHistory, SolutionKnowledge, DiagnosisSession
 ```
 
@@ -71,16 +75,16 @@ nextdoor-cs/
 | Phase | 환경 | 목표 | 핵심 파일 |
 |---|---|---|---|
 | **1** | 공통 | Gemini API 기반 + API 쿼터 설계 | `GeminiService.java`, `DiagnosisController.java` |
-| **2** | Electron | 앱 셋업 + IPC 브리지 | `main.js`, `preload.js`, `useRuntimeMode.js` |
-| **3** | Electron | 시스템 모니터 (CPU/GPU/메모리/온도) | `systemMonitor.js`, `SystemDashboard.jsx` |
-| **4** | Electron | 프로세스 + 이벤트 로그 분석 | `processAnalyzer.js`, `eventLogReader.js` |
-| **5** | Electron | SW 진단 풀 플로우 (가설 추적·재현·패턴·신뢰도) | `HypothesisTracker.jsx`, `ReproductionMode.jsx`, `PatternSelector.jsx`, `DiagnosisConfidence.jsx` |
-| **6** | PWA | PWA 셋업 + 독립 모드 + 오프라인 폴백 | `manifest.json`, `sw.js`, `CameraView.jsx` |
-| **7** | PWA | OpenCV 오버레이 + 영상 분석 + 촬영 가이드 | `useOpenCV.js`, `VideoAnalysis.jsx`, `ShootingGuide.jsx` |
-| **8** | PWA | BIOS 자동 감지 + 오디오 진단 | `BiosTypeSelector.jsx`, `AudioCapture.jsx` |
-| **9** | 공통 | MCP 매뉴얼/가격 툴 연동 | `ManualToolProvider.java`, `RepairAgent.java` |
-| **10** | 공통 | DB 이력 + 지식베이스 + 사후 확인 | `DiagnosisHistory.java`, `SolutionKnowledge.java`, `usePostDiagnosis.js` |
-| **11** | 공통 | 크로스 플랫폼 세션 (QR·연장·수동 입력·인증) | `SessionController.java`, `QRDisplay.jsx`, `SessionManager.jsx` |
+| **2** | Electron | 앱 셋업 + IPC 브리지 | `main.ts`, `preload.ts`, `useRuntimeMode.ts` |
+| **3** | Electron | 시스템 모니터 (CPU/GPU/메모리/온도) | `systemMonitor.ts`, `SystemDashboard.tsx` |
+| **4** | Electron | 프로세스 + 이벤트 로그 분석 | `processAnalyzer.ts`, `eventLogReader.ts` |
+| **5** | Electron | SW 진단 풀 플로우 (가설 추적·재현·패턴·신뢰도) | `HypothesisTracker.tsx`, `ReproductionMode.tsx`, `PatternSelector.tsx`, `DiagnosisConfidence.tsx` |
+| **6** | PWA | PWA 셋업 + 독립 모드 + 오프라인 폴백 | `manifest.json`, `sw.js`, `CameraView.tsx` |
+| **7** | PWA | OpenCV 오버레이 + 영상 분석 + 촬영 가이드 | `useOpenCV.ts`, `VideoAnalysis.tsx`, `ShootingGuide.tsx` |
+| **8** | PWA | BIOS 자동 감지 + 오디오 진단 | `BiosTypeSelector.tsx`, `AudioCapture.tsx` |
+| **9** | 공통 | MCP 매뉴얼 툴 연동 | `ManualToolProvider.java`, `RepairAgent.java` |
+| **10** | 공통 | DB 이력 + 지식베이스 + 사후 확인 | `DiagnosisHistory.java`, `SolutionKnowledge.java`, `usePostDiagnosis.ts` |
+| **11** | 공통 | 크로스 플랫폼 세션 (QR·연장·수동 입력·인증) | `SessionController.java`, `QRDisplay.tsx`, `SessionManager.tsx` |
 
 ---
 

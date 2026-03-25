@@ -13,7 +13,6 @@
 | **Base64** | 바이너리(이미지/오디오)를 텍스트로 인코딩하는 방식. Gemini API 전송 시 사용 |
 | **RAG** | Retrieval-Augmented Generation. AI가 외부 지식베이스를 검색해 답변 정확도를 높이는 기법. Phase 3 MCP와 유사 개념 |
 | **JPA Entity** | Java Persistence API. DB 테이블을 Java 클래스로 매핑하는 ORM 구조 |
-| **공임비** | 수리 기사가 부품 교체 등 작업에 청구하는 인건비 |
 | **부품 카테고리** | RAM, GPU(그래픽카드), MAINBOARD(메인보드), PSU(파워서플라이), STORAGE(저장장치), CPU, COOLING |
 | **Spring AI ChatClient** | Spring AI에서 LLM과 대화하는 핵심 클라이언트. `.prompt().user().tools().call()` 체이닝 패턴 사용 |
 | **MediaRecorder API** | 브라우저 내장 Web API. 마이크/카메라 스트림을 녹음/녹화해 Blob으로 저장 |
