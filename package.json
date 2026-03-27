@@ -10,7 +10,7 @@
     "electron:compile": "tsc -p tsconfig.electron.json",
     "electron:dev": "concurrently -k -n VITE,TSC,ELECTRON \"vite --mode electron --port 3000\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "vite build --mode electron && tsc -p tsconfig.electron.json && electron-builder",
-    "backend:dev": "cd backend && ./mvnw spring-boot:run",
+    "backend:dev": "cd backend && (export $(grep -v '^#' ../.env | xargs) 2>/dev/null; ./mvnw spring-boot:run)",
     "type-check": "tsc --noEmit",
     "test": "echo No tests configured yet && exit 0"
   },

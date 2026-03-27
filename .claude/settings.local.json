@@ -10,7 +10,16 @@
       "Bash(do wc:*)",
       "Bash(done)",
       "mcp__claude_ai_Figma__get_metadata",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(java -version)",
+      "Bash(mvn -version)",
+      "Bash(powershell -Command \":*)",
+      "Bash(curl.exe -s -o backend.zip \"https://start.spring.io/starter.zip?type=maven-project&language=java&bootVersion=3.3.5&baseDir=backend&groupId=com.nextdoorcs&artifactId=nextdoorcs&packageName=com.nextdoorcs&packaging=jar&javaVersion=21&dependencies=web%2Clombok\" -w \"%{http_code}\")",
+      "Bash(curl -sv --max-time 25 -X POST http://localhost:8080/api/diagnosis/hardware -F \"image=@/tmp/tmp.2JtzIZXX6O.jpg;type=image/jpeg\" -F \"symptom=PC가 켜지지 않아요\")",
+      "Bash(curl -s -L -o /tmp/test_board.jpg \"https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/A-Priori_Architecture_Decision.jpg/320px-A-Priori_Architecture_Decision.jpg\" -w \"HTTP:%{http_code} SIZE:%{size_download}\")",
+      "Read(//tmp/**)",
+      "Bash(powershell -Command \"Get-Process -Name java -ErrorAction SilentlyContinue | Select-Object Id, CPU, StartTime | Format-Table\")",
+      "Bash(powershell -Command \"Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 2; Get-Process -Name java -ErrorAction SilentlyContinue | Measure-Object | Select-Object -ExpandProperty Count\")"
     ]
   }
 }
