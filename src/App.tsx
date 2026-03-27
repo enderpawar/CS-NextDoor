@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { useRuntimeMode } from './hooks/useRuntimeMode';
 import type { ClipboardImage } from './types';
 import SystemDashboard from './components/desktop/SystemDashboard';
+import ProcessList from './components/desktop/ProcessList';
+import EventLogViewer from './components/desktop/EventLogViewer';
 import './styles/tokens.css';
 import './styles/global.css';
 import './styles/animations.css';
@@ -84,6 +86,10 @@ export default function App() {
 
         {/* Phase 3: Electron 전용 시스템 대시보드 */}
         {mode === 'electron' && <SystemDashboard />}
+
+        {/* Phase 4: Electron 전용 프로세스 목록 + 이벤트 로그 */}
+        {mode === 'electron' && <ProcessList />}
+        {mode === 'electron' && <EventLogViewer />}
       </main>
     </div>
   );

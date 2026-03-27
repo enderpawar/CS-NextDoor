@@ -112,7 +112,7 @@ nextdoor-cs/
 | **1** | ✅ 완료 — Gemini REST API 직접 호출, IP 기반 일일 쿼터, /hardware + /hypotheses 엔드포인트 검증 완료 |
 | **2** | ✅ 완료 — main.ts + preload.ts IPC 브리지, useRuntimeMode, App.tsx 클립보드 이미지 붙여넣기 완비 |
 | **3** | ✅ 완료 — CPU 온도·사용률·메모리·GPU(한계 명시)·디스크 I/O 실시간 수집 + SystemDashboard 렌더링 |
-| **4** | 🔲 미시작 |
+| **4** | ✅ 완료 — processAnalyzer + eventLogReader 수집, ProcessList(CPU/메모리 정렬 토글) + EventLogViewer(에러/경고) 렌더링 |
 | **5** | 🔲 미시작 |
 | **6** | 🔲 미시작 |
 | **7** | 🔲 미시작 |

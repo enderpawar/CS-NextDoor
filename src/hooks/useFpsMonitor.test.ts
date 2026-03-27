@@ -108,6 +108,6 @@ describe('useFpsMonitor', () => {
     act(() => tickFrames(10, 100));
 
     expect(result.current.drops.length).toBeGreaterThan(0);
-    expect(result.current.drops[0].dropPercent).toBeGreaterThan(20);
+    expect(result.current.drops[0]!.dropPercent).toBeGreaterThan(20);
   });
 });

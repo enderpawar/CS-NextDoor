@@ -38,6 +38,22 @@ export interface EventLog {
   id: number;
   levelDisplayName: string;
   message: string;
+  providerName?: string;   // Application 로그에만 포함
+}
+
+// ── 프로세스 데이터 타입 (Phase 4) ────────────────────────────────────────────
+
+export interface ProcessSummary {
+  name: string;
+  pid: number;
+  cpu: string;   // CPU 사용률 % (소수점 1자리 문자열, e.g. "12.5")
+  mem: string;   // 메모리 사용량 MB (정수 문자열, e.g. "512")
+}
+
+export interface ProcessData {
+  byCpu: ProcessSummary[];
+  byMem: ProcessSummary[];
+  total: number;
 }
 
 // ── IPC 브리지 인터페이스 ────────────────────────────────────────────────────
@@ -46,13 +62,16 @@ export interface ElectronAPI {
   // Phase 3 — 시스템 정보 (1회성 조회)
   getSystemInfo: () => Promise<SystemSnapshot>;
 
-  // Phase 3 — 실시간 업데이트 구독 (isSendingRef와 같이 사용)
+  // Phase 3 — 실시간 업데이트 구독
   // removeSystemListener()를 on() 직전에 호출 — Strict Mode 이중 등록 방지
   onSystemUpdate: (callback: (data: SystemSnapshot) => void) => void;
   removeSystemListener: () => void;
 
   // Phase 4 — Windows 이벤트 로그
   getEventLogs: () => Promise<EventLog[]>;
+
+  // Phase 4 — 상위 프로세스 목록
+  getTopProcesses: () => Promise<ProcessData>;
 
   // Phase 11 — 세션 관리
   getSessionId: () => Promise<string | null>;

@@ -1,6 +1,8 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { getSystemSnapshot, startMonitoring } from './modules/systemMonitor';
+import { getEventLogs } from './modules/eventLogReader';
+import { getTopProcesses } from './modules/processAnalyzer';
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -28,8 +30,11 @@ function createWindow(): void {
 // Phase 2: 1회성 조회
 ipcMain.handle('get-system-info', () => getSystemSnapshot());
 
-// Phase 4: 이벤트 로그 조회 (스텁 — Phase 4에서 eventLogReader.ts로 구현)
-ipcMain.handle('get-event-logs', () => []);
+// Phase 4: Windows 이벤트 로그 조회
+ipcMain.handle('get-event-logs', () => getEventLogs(30));
+
+// Phase 4: 상위 프로세스 목록 조회 (CPU / 메모리 기준)
+ipcMain.handle('get-top-processes', () => getTopProcesses(10));
 
 // Phase 11: 세션 ID 조회 (스텁 — Phase 11에서 SessionController 연동)
 ipcMain.handle('get-session-id', () => null);

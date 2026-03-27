@@ -26,7 +26,11 @@ describe('App — 런타임 모드 배지', () => {
 
   it('Electron 모드에서 DESKTOP 배지 표시', () => {
     Object.defineProperty(window, 'electronAPI', {
-      value: { getSystemInfo: vi.fn() },
+      value: {
+        getSystemInfo: vi.fn(),
+        getTopProcesses: vi.fn().mockResolvedValue({ byCpu: [], byMem: [], total: 0 }),
+        getEventLogs: vi.fn().mockResolvedValue([]),
+      },
       writable: true,
       configurable: true,
     });

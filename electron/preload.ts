@@ -15,8 +15,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeSystemListener: () =>
     ipcRenderer.removeAllListeners('system-update'),
 
-  // Phase 4 — Windows 이벤트 로그 조회 (스텁)
+  // Phase 4 — Windows 이벤트 로그 조회
   getEventLogs: () => ipcRenderer.invoke('get-event-logs'),
+
+  // Phase 4 — 상위 프로세스 목록 조회
+  getTopProcesses: () => ipcRenderer.invoke('get-top-processes'),
 
   // Phase 11 — 세션 ID 조회 (스텁)
   getSessionId: () => ipcRenderer.invoke('get-session-id'),
