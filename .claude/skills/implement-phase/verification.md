@@ -77,7 +77,7 @@ npm run electron:dev
 
 ---
 
-### Phase 4 — 프로세스 + 이벤트 로그
+### Phase 4 — 프로세스 + 이벤트 그로
 
 ```bash
 npm run electron:dev

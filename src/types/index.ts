@@ -6,6 +6,14 @@
 
 export type RuntimeMode = 'electron' | 'pwa-session' | 'pwa-standalone';
 
+// ── UI 공통 ───────────────────────────────────────────────────────────────────
+
+// 클립보드 이미지 붙여넣기 (App.tsx paste 이벤트, diagnosisApi 전송 시 재사용)
+export interface ClipboardImage {
+  dataUrl: string; // FileReader 결과 — Gemini 전송 시 base64 부분만 추출
+  file: File;
+}
+
 // ── 진단 도메인 ──────────────────────────────────────────────────────────────
 
 export interface DiagnosisResponse {
