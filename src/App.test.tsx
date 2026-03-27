@@ -2,11 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from './App';
 
-// CSS import 모킹 (jsdom은 CSS 미처리)
-vi.mock('./styles/tokens.css', () => ({}));
-vi.mock('./styles/global.css', () => ({}));
-vi.mock('./styles/animations.css', () => ({}));
-
 describe('App — 런타임 모드 배지', () => {
   beforeEach(() => {
     Object.defineProperty(window, 'electronAPI', {

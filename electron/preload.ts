@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { SystemSnapshot } from './modules/systemMonitor';
 
 // renderer(React)에서 window.electronAPI.* 로 접근
 // src/types/electron.d.ts의 ElectronAPI interface와 반드시 일치 유지
@@ -9,8 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Phase 3 — 실시간 업데이트 구독
   // React Strict Mode에서 useEffect 2회 실행 → on() 이중 등록 방지
   // removeSystemListener()를 on() 직전에 반드시 호출
-  onSystemUpdate: (cb: (data: unknown) => void) =>
-    ipcRenderer.on('system-update', (_, data) => cb(data)),
+  onSystemUpdate: (cb: (data: SystemSnapshot) => void) =>
+    ipcRenderer.on('system-update', (_, data) => cb(data as SystemSnapshot)),
   removeSystemListener: () =>
     ipcRenderer.removeAllListeners('system-update'),
 

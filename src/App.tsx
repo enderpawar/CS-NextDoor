@@ -1,13 +1,9 @@
 import { useRef, useState } from 'react';
 import { useRuntimeMode } from './hooks/useRuntimeMode';
+import type { ClipboardImage } from './types';
 import './styles/tokens.css';
 import './styles/global.css';
 import './styles/animations.css';
-
-interface ClipboardImage {
-  dataUrl: string;
-  file: File;
-}
 
 export default function App() {
   const mode = useRuntimeMode();

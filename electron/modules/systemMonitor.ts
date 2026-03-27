@@ -1,5 +1,11 @@
 import si from 'systeminformation';
 
+// ── 타입 동기화 주의 ────────────────────────────────────────────────────────
+// 아래 타입들은 src/types/electron.d.ts의 동명 interface와 구조가 반드시 일치해야 함.
+// tsconfig.electron.json의 rootDir:"electron" 제약으로 src/ import 불가 → 불가피한 중복.
+// 필드 추가·변경 시 electron.d.ts도 함께 수정할 것.
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface CpuInfo {
   usage: number;
   temperature: number | null;

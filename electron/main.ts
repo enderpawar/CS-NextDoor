@@ -37,12 +37,16 @@ function createWindow(): void {
 ipcMain.handle('get-system-info', () => getSystemSnapshot());
 
 // Phase 4: 이벤트 로그 조회 (스텁 — Phase 4에서 eventLogReader.ts로 구현)
-ipcMain.handle('get-event-logs', async () => []);
+ipcMain.handle('get-event-logs', () => []);
 
 // Phase 11: 세션 ID 조회 (스텁 — Phase 11에서 SessionController 연동)
-ipcMain.handle('get-session-id', async () => null);
+ipcMain.handle('get-session-id', () => null);
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+// macOS: Dock 아이콘 클릭 시 창 재생성
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
