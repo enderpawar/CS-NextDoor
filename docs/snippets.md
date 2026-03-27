@@ -1419,47 +1419,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
 ## Phase 11 — DiagnosisSession.java (세션 엔티티)
 
-> data-model.md의 전체 엔티티 정의와 일치. 핵심 필드 요약:
-
-```java
-@Entity
-@Table(name = "diagnosis_session")
-@Getter @Builder
-@NoArgsConstructor @AllArgsConstructor
-public class DiagnosisSession {
-
-    @Id
-    private String sessionId;
-
-    @Enumerated(EnumType.STRING)
-    private SessionStatus status;      // WAITING / SW_READY / HW_READY / DIAGNOSING / DONE
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private SessionType sessionType;   // PWA_ONLY / LINKED
-
-    @Column(columnDefinition = "TEXT")
-    private String swSnapshot;
-
-    @Column(columnDefinition = "TEXT")
-    private String hwFrames;
-
-    @Column(columnDefinition = "TEXT")
-    private String diagnosisResult;
-
-    private String authToken;          // SecureRandom 8자리 alphanumeric
-    private boolean tokenConsumed;     // 토큰 1회 폐기 추적
-    private String shortCode;          // 6자리 수동 입력 폴백
-
-    private LocalDateTime expiresAt;
-
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-
-    public enum SessionStatus { WAITING, SW_READY, HW_READY, DIAGNOSING, DONE }
-    public enum SessionType   { PWA_ONLY, LINKED }
-}
-```
+> 정본: `.claude/rules/data-model.md` — 여기에 중복 정의하지 않음. 구현 시 data-model.md를 참조할 것.
 
 ---
 

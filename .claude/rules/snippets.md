@@ -1,6 +1,8 @@
 # 비자명 함정 패턴 — 구현 시 반드시 참고
 
-> 전체 Phase별 코드 스니펫: `docs/snippets.md`
+> **역할 구분**: 이 파일(`rules/snippets.md`)은 **필수 패턴 요약** — 놓치면 버그가 되는 함정만 모음.
+> 전체 Phase별 구현 레퍼런스(컴포넌트·훅·컨트롤러 전체 코드)는 `docs/snippets.md`(on-demand).
+> 충돌 시 상위 문서(`CLAUDE.md` → `rules/`) 우선. `docs/`는 예시일 뿐 독립 소스가 아님.
 
 ---
 
@@ -263,6 +265,49 @@ if (data === '[DONE]') {
   }
   return;
 }
+```
+
+---
+
+## [Live Guide] 3단계 즉각 피드백 UI
+
+```ts
+// LiveGuideMode.tsx — 프레임 전송 후 공백(5~10초) 동안 단계별 피드백
+// captureState: 'idle' | 'captured' | 'analyzing'
+// elapsedTimerRef: setInterval 핸들 (경과 시간 카운트)
+
+type CaptureState = 'idle' | 'captured' | 'analyzing';
+
+const [captureState, setCaptureState] = useState<CaptureState>('idle');
+const [elapsed, setElapsed] = useState(0);
+const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+// sendFrame 진입 시 호출
+const startFeedback = () => {
+  setCaptureState('captured');          // 📸 캡처됨 (0.5초)
+  setTimeout(() => {
+    setCaptureState('analyzing');       // ⏳ 분석 중
+    setElapsed(0);
+    elapsedTimerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+  }, 500);
+};
+
+// 응답 완료(isSendingRef = false) 시 호출
+const endFeedback = () => {
+  if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+  setCaptureState('idle');
+  setElapsed(0);
+};
+
+// JSX — GuideBubble 위에 상태 표시
+{captureState === 'captured'  && <div className="badge animate-capture-pop">📸 캡처됨</div>}
+{captureState === 'analyzing' && (
+  <div className="analyzing-feedback">
+    <span>⏳ 분석 중 {elapsed}초</span>
+    {elapsed >= 3 && elapsed < 7 && <span>잠시만요!</span>}
+    {elapsed >= 7 && <span>거의 다 됐어요</span>}
+  </div>
+)}
 ```
 
 ---

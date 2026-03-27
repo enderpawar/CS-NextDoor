@@ -10,6 +10,17 @@
 @.claude/rules/api-endpoints.md
 @.claude/rules/figma-design-system.md
 
+## 규칙 우선순위
+
+충돌 시 아래 순서로 상위 문서가 이깁니다:
+
+1. **`CLAUDE.md`** — 프로젝트 정의 (최상위)
+2. **`.claude/rules/`** — 도메인별 규칙 (자동 로드)
+3. **`docs/snippets.md`** — 구현 레퍼런스 (on-demand)
+4. **`reference/`** — 배경 자료 (on-demand): `design-system.md` (Figma 원본 분석), `Market_report.md` (시장 조사)
+
+> 하위 문서에 상위와 다른 내용이 있으면 상위가 정본입니다. 하위 문서는 상위의 요약·예시일 뿐이며 독립 소스가 아닙니다.
+
 ---
 
 ## 진단 모드 분리
@@ -88,6 +99,28 @@ nextdoor-cs/
 | **9** | 공통 | MCP 매뉴얼 툴 연동 | `ManualToolProvider.java`, `RepairAgent.java` |
 | **10** | 공통 | DB 이력 + 지식베이스 + 사후 확인 | `DiagnosisHistory.java`, `SolutionKnowledge.java`, `usePostDiagnosis.ts` |
 | **11** | 공통 | 크로스 플랫폼 세션 (QR·연장·수동 입력·인증) | `SessionController.java`, `QRDisplay.tsx`, `SessionManager.tsx` |
+
+---
+
+## Phase 진행 상태
+
+> Phase 완료 시 상태를 업데이트합니다. 새 세션에서 이 표로 재개 지점을 판단합니다.
+
+| Phase | 상태 |
+|---|---|
+| **0** (인프라) | ✅ 완료 — 타입·디자인 토큰·빌드 설정·스타일 CSS 완비 |
+| **1** | 🔲 미시작 |
+| **2** | 🔲 미시작 |
+| **3** | 🔲 미시작 |
+| **4** | 🔲 미시작 |
+| **5** | 🔲 미시작 |
+| **6** | 🔲 미시작 |
+| **7** | 🔲 미시작 |
+| **7-B** | 🔲 미시작 |
+| **8** | 🔲 미시작 |
+| **9** | 🔲 미시작 |
+| **10** | 🔲 미시작 |
+| **11** | 🔲 미시작 |
 
 ---
 

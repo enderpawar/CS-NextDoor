@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@stomp/stompjs": "^7.0.0",
+    "systeminformation": "^5.22.11",
     "jsqr": "^1.4.0",
     "lucide-react": "^0.378.0",
     "react": "^18.3.1",

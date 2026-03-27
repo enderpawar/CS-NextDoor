@@ -13,20 +13,27 @@ CLAUDE.md와 `.claude/rules/snippets.md`를 참고하여 **Phase $ARGUMENTS**를
 
 ## Phase 목표 & 완료 조건 요약
 
-| Phase | 환경 | 목표 | 완료 조건 |
-|---|---|---|---|
-| **1** | 공통 | 백엔드 Gemini API | `curl` POST → AI 진단 JSON 수신 |
-| **2** | Electron | 앱 셋업 + IPC | 창 실행 + `getSystemInfo()` 객체 반환 |
-| **3** | Electron | 시스템 모니터 | UI에 CPU/GPU/온도 실시간 표시 |
-| **4** | Electron | 프로세스 + 이벤트 로그 | 고부하 프로세스 목록 + 이벤트 에러 표시 |
-| **5** | Electron | SW 진단 풀 플로우 | 가설 A/B/C 카드 표시 + 재현 모드 + 신뢰도 UI |
-| **6** | PWA | PWA 셋업 + 카메라 | 모바일 후면 카메라 스트림 표시 |
-| **7** | PWA | OpenCV 오버레이 + 촬영 가이드 | 부품 윤곽 박스 + ShootingGuide + 프레임 전송 |
-| **7-B** | PWA | 라이브 카메라 가이드 모드 | BIOS 화면 비추기 → 단계별 안내 SSE 수신 |
-| **8** | PWA | BIOS 감지 + 오디오 진단 | BIOS 제조사 자동 감지 + 녹음 → 비프음 분석 |
-| **9** | 공통 | MCP 툴 연동 | AI 응답에 매뉴얼 출처 포함 |
-| **10** | 공통 | DB 진단 이력 | 진단 후 DB 레코드 생성 확인 |
-| **11** | 공통 | 크로스 플랫폼 세션 | QR 스캔 → WebSocket 연결 → 통합 진단 결과 수신 |
+> 정본: `CLAUDE.md` Phase Roadmap 표 — 여기에 중복 정의하지 않음.
+> 각 Phase의 목표·핵심 파일은 CLAUDE.md를 참조할 것.
+> **현재 진행 상태**: `CLAUDE.md` "Phase 진행 상태" 표 확인 — 미완료 Phase 중 가장 낮은 번호부터 시작.
+
+---
+
+## Phase 1 전 스캐폴딩 (디렉토리 미존재 시)
+
+Phase 1을 시작하기 전에 아래 디렉토리/파일이 없으면 먼저 생성합니다:
+
+| 경로 | 생성 방법 |
+|---|---|
+| `backend/` | Spring Initializr: `spring-boot-starter-web`, `spring-ai-vertex-ai-gemini`, `spring-boot-starter-data-jpa`, `postgresql`, `spring-boot-starter-websocket`, `lombok` 포함 |
+| `electron/main.ts` | Electron 진입점 (BrowserWindow 생성) |
+| `electron/preload.ts` | contextBridge IPC 브리지 |
+| `src/App.tsx` | React 라우터 루트 |
+| `src/main.tsx` | ReactDOM.createRoot 진입점 |
+| `pwa/public/sw.js` | Service Worker (plain JS, TS 빌드 제외) |
+| `.env` | `GEMINI_API_KEY=`, `SPRING_DATASOURCE_URL=`, `ALLOWED_ORIGINS=http://localhost:3000` |
+
+> 각 파일의 보일러플레이트는 `docs/snippets.md`의 해당 섹션을 참조합니다.
 
 ---
 

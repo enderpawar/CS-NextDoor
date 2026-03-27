@@ -4,9 +4,9 @@
   "description": "수리기사 부르기 전, 옆집 컴공생에게 먼저 물어보세요!",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#3182f6",
+  "orientation": "any",
+  "background_color": "#f9f9f9",
+  "theme_color": "#4355b9",
   "icons": [
     {
       "src": "/icons/icon-192.png",

@@ -166,7 +166,7 @@
 ### [ ] 22-3. 3단계 즉각 피드백 UI (Phase 7-B 전)
 - 공백 5~10초 동안 단계별 피드백 필수: 📸 캡처됨(0.5초) → ⏳ 분석 중+경과시간 → 응답 표시
 - 3초: "잠시만요!", 7초: "거의 다 됐어요" 보조 메시지. `captureState` + `elapsedTimerRef` 관리
-- `snippets.md` `[Live Guide] 3단계 즉각 피드백 UI` 참조 *(추가 예정)*
+- `snippets.md` `[Live Guide] 3단계 즉각 피드백 UI` 참조
 
 ### [ ] 22-4. 히스토그램 3프레임 연속 확인 (Phase 7-B 전)
 - 단발 감지 → 손 떨림/Rolling Shutter false positive 발생. `changeCountRef`로 연속 3프레임 확인
