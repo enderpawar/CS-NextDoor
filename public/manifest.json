@@ -1,0 +1,24 @@
+{
+  "name": "옆집 컴공생",
+  "short_name": "옆집 컴공생",
+  "description": "수리기사 부르기 전, 옆집 컴공생에게 먼저 물어보세요!",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#3182f6",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["utilities", "productivity"]
+}

@@ -36,3 +36,10 @@
 | **WMI** | Windows Management Instrumentation. Windows 하드웨어/소프트웨어 정보 쿼리 인터페이스. systeminformation 내부에서 사용 |
 | **BSOD** | Blue Screen of Death. Windows 커널 오류 발생 시 표시되는 블루스크린. 이벤트 로그에 덤프 파일 기록됨 |
 | **facingMode: environment** | `getUserMedia` 옵션. 모바일 후면 카메라(PC 내부 촬영용) 선택 |
+| **CLAHE** | Contrast Limited Adaptive Histogram Equalization. 저대비 이미지(BIOS 화면 등)의 명암을 구역별로 강화하는 OpenCV 알고리즘. `new cv.CLAHE(clipLimit, tileSize)` |
+| **compareHist** | OpenCV 히스토그램 유사도 비교 함수. `cv.HISTCMP_CORREL` 기준 1.0=동일, 낮을수록 변화 큼. 라이브 가이드 모드에서 화면 변화 감지에 사용. |
+| **SSE (Server-Sent Events)** | 서버→클라이언트 단방향 실시간 스트리밍. `text/event-stream` 응답 타입. EventSource는 GET만 지원 → POST 본문 포함 시 `fetch()` + `ReadableStream` 사용. |
+| **GuideContext** | 라이브 가이드 모드의 작업 유형 열거형. `BIOS_ENTRY` / `BOOT_MENU` / `WINDOWS_INSTALL` / `BIOS_RESET` / `SECURE_BOOT` |
+| **SseEmitter** | Spring에서 SSE 스트리밍 응답을 보내는 클래스. `emitter.send()` 로 청크 전송, `emitter.complete()` 로 종료. 타임아웃 설정 필수 (기본 30초). |
+| **isSendingRef** | 라이브 가이드 모드에서 동시 Gemini 요청을 막기 위한 `useRef<boolean>` 플래그. 이전 응답 완료 전 새 프레임 전송을 차단. |
+| **Rolling Shutter** | 카메라 센서가 한 줄씩 순차 스캔하는 방식. 모니터 주사선과 간섭 시 화면 일부가 잘려 보이는 아티팩트 발생. BIOS 화면 촬영 시 주의. |

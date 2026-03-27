@@ -1,0 +1,201 @@
+/* ── Animations — 옆집 컴공생 ────────────────────────────────────────────
+ * 피그마에서 추출한 glow/pulse 패턴 + 공통 진입 애니메이션.
+ * 컴포넌트에서 className으로 직접 적용.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/* ── 진입 애니메이션 ──────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── 브랜드 Glow Pulse (활성 상태 dot, 진단 중 표시) ──────────────────────── */
+
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 4px 0 rgba(67, 85, 185, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(67, 85, 185, 0.7);
+  }
+}
+
+/* ── 분석 중 로딩 dot (···) ──────────────────────────────────────────────── */
+
+@keyframes dotBounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* ── 타이핑 커서 (GuideBubble SSE 스트리밍) ──────────────────────────────── */
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── 프로그레스 바 shimmer (데이터 로딩 중) ──────────────────────────────── */
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+
+/* ── 캡처 배지 (📸 → 분석 중 → 완료) ───────────────────────────────────── */
+
+@keyframes capturePop {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* ── 토스트 슬라이드 업 ─────────────────────────────────────────────────── */
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── 경고 흔들기 (stale guide, 오류 상태) ────────────────────────────────── */
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-4px); }
+  40%       { transform: translateX(4px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX(3px); }
+}
+
+/* ── 유틸리티 클래스 ─────────────────────────────────────────────────────── */
+
+.animate-fade-in {
+  animation: fadeIn 200ms ease both;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 300ms ease both;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 250ms ease both;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 250ms ease both;
+}
+
+.animate-glow-pulse {
+  animation: glowPulse 2s ease-in-out infinite;
+}
+
+.animate-toast {
+  animation: toastSlideUp 250ms ease both;
+}
+
+.animate-capture-pop {
+  animation: capturePop 300ms ease both;
+}
+
+.animate-shake {
+  animation: shake 400ms ease both;
+}
+
+/* 로딩 dot 3개 — nth-child로 딜레이 */
+.dot-loading span {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--color-brand);
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+
+.dot-loading span:nth-child(2) { animation-delay: 0.2s; }
+.dot-loading span:nth-child(3) { animation-delay: 0.4s; }
+
+/* 타이핑 커서 */
+.typing-cursor::after {
+  content: '|';
+  display: inline-block;
+  margin-left: 1px;
+  animation: blink 1s step-end infinite;
+  color: var(--color-brand);
+}
+
+/* 스켈레톤 shimmer */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-card-sub) 0%,
+    #e8eaeb 50%,
+    var(--color-bg-card-sub) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+  border-radius: var(--radius-md);
+}
+
+/* ── 지연 유틸리티 ─────────────────────────────────────────────────────── */
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+
+/* ── 접근성: prefers-reduced-motion ────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

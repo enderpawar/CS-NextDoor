@@ -1,91 +1,72 @@
 # 시스템 워크플로우
 
 > PC 상태에 따라 두 가지 진입점. 가설 순차 추적 → 재현(실패 시 패턴 선택) → HW 에스컬레이션(QR 연장/수동 입력) → 복합 원인 계속 진단 → 사후 확인.
+>
+> 상세 시퀀스 다이어그램: `.claude/rules/workflow-diagram.md`
 
-```mermaid
-sequenceDiagram
-    actor User
-    participant Electron
-    participant PWA
-    participant Spring
-    participant Gemini
-    participant MCP
+---
 
-    alt PC 정상 부팅 — SW 진단
-        User->>Electron: ① 증상 텍스트 입력 (Ctrl+V로 클립보드 이미지 첨부 가능)
-        Electron->>Electron: 스냅샷 수집 + BIOS 제조사 자동 감지
-        Electron->>Spring: POST /api/diagnosis/hypotheses {symptom, systemSnapshot}
-        Spring->>Gemini: 증상 + 스냅샷 분석
-        Gemini->>Spring: 가설 A/B/C + 신뢰도% + 즉시 조치
-        Spring->>User: ② HypothesisTracker — 가설 목록 + 신뢰도 표시
-        Note over User,Electron: 가설을 우선순위대로 순차 시도. 각 시도 완료/실패 상태 추적
+## 진입 분기
 
-        User->>User: ③ 가설별 조치 순차 시도
+| 상황 | 진입점 | 첫 화면 |
+|---|---|---|
+| PC 정상 부팅 | Electron | 증상 입력 + 시스템 스냅샷 자동 수집 |
+| PC 부팅 불가 | PWA 직접 접속 | ⚠️ SW 데이터 없음 — 정확도 제한 안내 |
 
-        alt 해결됨
-            User->>Spring: POST /api/diagnosis/{id}/feedback (RESOLVED)
-            Spring->>Spring: 24시간 사후 확인 알림 스케줄
-        else 모든 가설 소진 — 재현 모드
-            User->>Electron: ④ 재현 모드 시작
-            Electron->>Electron: 베이스라인 저장 (비정상 수치 시 경고 + 상대 delta 모드)
-            User->>User: 문제 상황 재현 시도
+---
 
-            alt 증상 재현됨
-                Electron->>Spring: POST /api/diagnosis/software {baseline, delta, hypothesis}
-                Spring->>Gemini: delta 비교
-                Gemini->>MCP: get_manual_info()
-                MCP->>Gemini: 매뉴얼
-                Gemini->>Spring: 가설 확정 + 신뢰도%
-                Spring->>User: ⑤ SW 결과 + DiagnosisConfidence 표시
-            else 증상 재현 안 됨
-                Electron->>Spring: POST /api/diagnosis/patterns {eventLog}
-                Spring->>User: PatternSelector — 이벤트 로그 유사 패턴 제안
-                User->>Spring: 패턴 선택 → POST /api/diagnosis/hypotheses (재진단)
-            end
+## SW 진단 흐름 (Electron)
 
-            alt SW 해결됨
-                User->>Spring: POST /api/diagnosis/{id}/feedback (RESOLVED)
-            else HW 에스컬레이션 (AI 판단 또는 사용자 수동 전환)
-                Electron->>Spring: POST /api/session/create
-                Spring->>Electron: sessionId + authToken
-                Electron->>User: ⑥ QR 코드 + 만료 카운트다운 (5분)
+1. 증상 텍스트 입력 (Ctrl+V 클립보드 이미지 첨부 가능) + BIOS 제조사 자동 감지
+2. `POST /api/diagnosis/hypotheses` → 가설 A/B/C + 신뢰도% + 즉시 조치
+3. **HypothesisTracker**: 가설을 우선순위대로 순차 시도. 각 시도 완료/실패 상태 추적
+4. 모든 가설 소진 → **재현 모드**: 베이스라인 수집 후 문제 재현
+   - 재현 성공(delta 초과) → `POST /api/diagnosis/software` → 가설 확정
+   - 재현 실패(delta 미달) → `POST /api/diagnosis/patterns` → **PatternSelector** 유사 패턴 제안
+5. SW 미해결 → HW 에스컬레이션: `POST /api/session/create` → QR 코드 + 만료 카운트다운(5분)
+   - QR 스캔 실패 시: `POST /api/session/{id}/extend` (+5분) 또는 6자리 shortCode 수동 입력
 
-                alt QR 스캔 성공
-                    User->>PWA: QR 스캔 → token 검증
-                else 만료 임박 또는 스캔 실패
-                    User->>Electron: 연장 (POST /api/session/{id}/extend +5분) 또는 수동 ID 입력
-                end
-                Spring->>Electron: WS → HW_READY 이벤트
-            end
-        end
+---
 
-    else PC 부팅 불가 — PWA 독립 모드
-        User->>PWA: ① PWA 직접 접속
-        PWA->>User: ⚠️ SW 데이터 없음 — 정확도 제한 안내
-    end
+## HW 진단 흐름 (PWA)
 
-    %% ── HW 진단 공통 흐름 ──
-    alt 세션 모드 (Electron BIOS 자동 감지)
-        PWA->>User: 감지된 BIOS 제조사 표시 (확인만)
-    else 독립 모드 또는 감지 실패
-        User->>PWA: BIOS 제조사 수동 선택 (AMI / Award / Phoenix / 기타) 
-    end
+1. BIOS 제조사 확인 (세션 모드: 자동 수신 / 독립·감지 실패: BiosTypeSelector 수동 선택)
+2. **ShootingGuide**: 부위별 촬영 다이어그램 + 거리/각도 안내
+3. 후면 카메라 + 마이크(AEC 비활성) + OpenCV 오버레이 → VideoAnalysis 프레임 추출
+4. `POST /api/diagnosis/hardware` (독립) 또는 `POST /api/session/{id}/hardware` (세션)
+5. Gemini ← MCP `get_manual_info(biosType, errorCode)` → HW 진단 결과 + 신뢰도%
+6. 세션 모드: WS → DONE 이벤트 → Electron에도 결과 표시
 
-    PWA->>User: ShootingGuide — 부위별 촬영 다이어그램 + 거리/각도 안내
-    PWA->>PWA: 후면 카메라 + 마이크 (AEC 비활성) + OpenCV 오버레이
-    PWA->>PWA: VideoAnalysis — 핵심 프레임 추출
-    PWA->>Spring: POST {biosType, frames, audio, audioMimeType}
-    Spring->>Gemini: biosType + 미디어 + swSnapshot?
-    Gemini->>MCP: get_manual_info(biosType, errorCode)
-    MCP->>Gemini: 제조사 매뉴얼
-    Gemini->>Spring: HW 진단 결과 + 신뢰도%
-    Spring-->>Electron: WS → DONE (세션 모드)
-    Spring->>User: ⑦ [원인] → [조치] + DiagnosisConfidence
+---
 
-    alt 복합 원인 의심 또는 미해결
-        User->>Electron: 역방향 SW 추가 진단 요청
-    else 해결됨
-        User->>Spring: POST /api/diagnosis/{id}/feedback (RESOLVED)
-        Spring->>Spring: 24시간 사후 확인 스케줄
-    end
-```
+## Phase 7-B — 라이브 카메라 가이드 모드
+
+> BIOS 설정·Windows 설치 등 화면 작업을 카메라로 비추면 Gemini가 단계별 안내.
+
+**핵심 설계 원칙**:
+- rAF 루프 히스토그램 비교 → **연속 3프레임 변화 감지** 시만 Gemini 전송 (false positive 차단)
+- OpenCV: 변화 감지 + CLAHE 전처리만. 텍스트 인식은 Gemini Vision에 위임
+- 세션 시작 즉시 `STATIC_FIRST_GUIDE[context]` 표시 → Gemini 응답 도착 시 교체
+- 프레임 전송 후 3단계 피드백: 📸 캡처됨 → ⏳ 분석 중+경과시간 → 응답 도착
+- 응답 도착 시 전송 당시 히스토그램 vs 현재 비교 → 유사도 < 0.7 시 stale guide 경고
+
+**비용 제어**:
+
+| 방법 | 효과 |
+|---|---|
+| 히스토그램 유사도 임계값 0.92 | 동일 화면 반복 전송 차단 |
+| **연속 3프레임 변화 확인** | 손 떨림/Rolling Shutter false positive 차단 |
+| 최소 전송 간격 2초 쿨다운 | 초당 다중 호출 방지 |
+| `isSendingRef` 동시 전송 차단 | 이전 응답 완료 전 새 프레임 무시 |
+| `AbortController` 연결 | 언마운트/종료 시 진행 중 스트림 즉시 취소 |
+| 대화 히스토리 최대 6턴 슬라이딩 | 토큰 누적 방지 |
+| `[완료]` 태그 누적 버퍼 기준 감지 | 청크 분할 무관 세션 자동 종료 보장 |
+| 세션 최대 수명 15분 | 방치 세션 비용 차단 |
+
+---
+
+## 공통 완료 흐름
+
+- 해결됨 → `POST /api/diagnosis/{id}/feedback (RESOLVED)` → 24시간 사후 확인 스케줄
+- 복합 원인 의심 → "이게 전부가 아닐 수 있어요" 버튼 → `previousDiagnosisId` 포함 재진단
+- 신뢰도 < 0.6 → "수리기사 상담 권장" 배너 자동 표시

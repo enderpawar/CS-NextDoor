@@ -22,7 +22,7 @@
 | **진단 예시** | 커패시터 불량, 비프음, LED 패턴 | CPU 과부하, 메모리 누수, BSOD 이력 |
 | **핵심 기술** | OpenCV.js + MediaRecorder + Gemini Vision | systeminformation + Event Log + Gemini |
 
-> PWA는 **독립 모드** (PC 부팅 불가 → Electron 없이 직접 접속)와 **세션 모드** (Electron QR 연결) 두 가지로 동작합니다. !fix : PWA 환경에서도 별도 세션을 생성하여 크로스 플랫폼에서 모두 접속 가능한 세션을 유지할 수 있도록 해야함.
+> PWA는 항상 앱 시작 시 세션을 자동 생성합니다 (`SessionType.PWA_ONLY`). Electron QR 스캔 시 해당 세션을 폐기하고 Electron 세션에 합류(`SessionType.LINKED`)합니다. 독립 진단(SW 데이터 없음)과 연결 진단 모두 세션 ID로 추적됩니다.
 
 ---
 
@@ -56,13 +56,15 @@ nextdoor-cs/
 │   │   │             HypothesisTracker.tsx, PatternSelector.tsx
 │   │   ├── mobile/   CameraView.tsx, VideoAnalysis.tsx, AudioCapture.tsx
 │   │   │             BiosTypeSelector.tsx, ShootingGuide.tsx
+│   │   │             LiveGuideMode.tsx, GuideContextSelector.tsx, GuideBubble.tsx
 │   │   └── shared/   DiagnosisResult.tsx, DiagnosisConfidence.tsx, SessionManager.tsx
 │   ├── hooks/ useRuntimeMode.ts, useSystemInfo.ts, useOpenCV.ts, useFpsMonitor.ts
 │   │          useReproductionMonitor.ts, usePostDiagnosis.ts
+│   │          useLiveFrameCapture.ts, useGeminiLiveGuide.ts
 │   └── api/diagnosisApi.ts
 └── backend/src/main/java/com/nextdoorcs/
-    ├── controller/ DiagnosisController, SessionController
-    ├── service/    DiagnosisService, GeminiService
+    ├── controller/ DiagnosisController, SessionController, GuideController
+    ├── service/    DiagnosisService, GeminiService, LiveGuideService
     ├── agent/      RepairAgent
     ├── mcp/        ManualToolProvider
     └── entity/     DiagnosisHistory, SolutionKnowledge, DiagnosisSession
@@ -81,6 +83,7 @@ nextdoor-cs/
 | **5** | Electron | SW 진단 풀 플로우 (가설 추적·재현·패턴·신뢰도) | `HypothesisTracker.tsx`, `ReproductionMode.tsx`, `PatternSelector.tsx`, `DiagnosisConfidence.tsx` |
 | **6** | PWA | PWA 셋업 + 독립 모드 + 오프라인 폴백 | `manifest.json`, `sw.js`, `CameraView.tsx` |
 | **7** | PWA | OpenCV 오버레이 + 영상 분석 + 촬영 가이드 | `useOpenCV.ts`, `VideoAnalysis.tsx`, `ShootingGuide.tsx` |
+| **7-B** | PWA | 라이브 카메라 가이드 모드 (BIOS/Windows 단계별 안내) | `LiveGuideMode.tsx`, `useLiveFrameCapture.ts`, `useGeminiLiveGuide.ts`, `GuideController.java` |
 | **8** | PWA | BIOS 자동 감지 + 오디오 진단 | `BiosTypeSelector.tsx`, `AudioCapture.tsx` |
 | **9** | 공통 | MCP 매뉴얼 툴 연동 | `ManualToolProvider.java`, `RepairAgent.java` |
 | **10** | 공통 | DB 이력 + 지식베이스 + 사후 확인 | `DiagnosisHistory.java`, `SolutionKnowledge.java`, `usePostDiagnosis.ts` |
@@ -133,3 +136,7 @@ git push origin main                    # Render 자동 배포
 - **신뢰도 60% 기준**: confidence < 0.6 → 수리기사 권장 배너 자동 표시
 - **API 쿼터**: IP 기반 일일 진단 횟수 제한 미설정 시 비용 폭증 위험
 - **데이터 프라이버시**: 진단 전 Gemini 서버 전송 동의 고지 UI 필수
+- **Live Guide — OpenCV 역할 제한**: 히스토그램 변화 감지(`compareHist`) + CLAHE 전처리만 담당. BIOS 텍스트 OCR은 Gemini Vision에 위임 (별도 OCR 파이프라인 구축 불필요)
+- **Live Guide — 비용 제어**: 히스토그램 유사도 임계값 0.92 + 최소 전송 간격 2초 + 대화 히스토리 최대 6턴. 세션 최대 수명 15분.
+- **Live Guide — SSE**: `SseEmitter` 타임아웃 60초. Gemini 응답에 `[완료]` 태그 포함 시 세션 자동 종료. EventSource는 GET만 지원 → fetch() 스트리밍으로 POST 본문 전송.
+- **Live Guide — 동시 전송 방지**: `isSendingRef`로 이전 응답 완료 전 새 프레임 전송 차단. 완료 전 변화 감지는 무시.

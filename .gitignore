@@ -1,0 +1,18 @@
+node_modules/
+dist/
+release/
+.env
+.env.local
+backend/target/
+backend/.mvn/
+*.class
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml

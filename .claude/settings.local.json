@@ -4,7 +4,13 @@
       "WebSearch",
       "WebFetch(domain:ai.google.dev)",
       "mcp__claude_ai_Figma__create_design_system_rules",
-      "mcp__claude_ai_Figma__get_design_context"
+      "mcp__claude_ai_Figma__get_design_context",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?|java|json|xml\\)$\")",
+      "Bash(for f:*)",
+      "Bash(do wc:*)",
+      "Bash(done)",
+      "mcp__claude_ai_Figma__get_metadata",
+      "Bash(node -e \":*)"
     ]
   }
 }

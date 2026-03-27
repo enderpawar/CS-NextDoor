@@ -23,17 +23,10 @@ public class DiagnosisHistory {
     @Column(columnDefinition = "TEXT")
     private String symptomDescription; // 사용자 입력 증상 텍스트
 
-    // ⚠️ JSONB vs TEXT 결정은 Phase 1 설계 시점에 확정해야 합니다 (나중에 변경 시 ALTER TABLE 마이그레이션 필요).
-    //
-    // [Hibernate 6 타입 충돌 주의]
-    // Spring Boot 3.x 기본 Hibernate 6에서 String 필드 + columnDefinition="jsonb" 조합은 삽입 시 오류 발생:
-    //   ERROR: column "ai_diagnosis" is of type jsonb but expression is of type character varying
-    //   PostgreSQL JDBC 드라이버가 String을 character varying으로 추론하기 때문입니다.
-    //
-    // 선택지:
-    //   A) columnDefinition = "TEXT" 로 변경 (권장 — 단순, JSONB 인덱싱 불필요하면 충분)
-    //   B) AttributeConverter 구현 후 @Convert 적용 (JSONB 인덱싱이 필요한 경우)
-    @Column(columnDefinition = "jsonb")
+    // ✅ TEXT 확정 (Phase 1 결정). JSONB로 변경 시 ALTER TABLE 마이그레이션 필요.
+    // Hibernate 6 + columnDefinition="jsonb" 조합은 삽입 시 타입 불일치 오류 발생 — TEXT 사용.
+    // JSONB 인덱싱이 필요해지면 AttributeConverter + @Convert 로 전환.
+    @Column(columnDefinition = "TEXT")
     private String aiDiagnosis;        // JSON { cause, solution, parts, confidence }
 
     @ElementCollection
@@ -106,7 +99,7 @@ CREATE TABLE diagnosis_history (
     image_url       VARCHAR,
     audio_url       VARCHAR,
     symptom_description TEXT,
-    ai_diagnosis    JSONB,
+    ai_diagnosis    TEXT,              -- JSONB 아님. Hibernate 6 타입 충돌 방지
     resolved_at     TIMESTAMP,
     created_at      TIMESTAMP DEFAULT now()
 );
@@ -159,8 +152,12 @@ public class DiagnosisSession {
     @Enumerated(EnumType.STRING)
     private SessionStatus status;      // WAITING / SW_READY / HW_READY / DIAGNOSING / DONE
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private SessionType sessionType;   // PWA_ONLY / LINKED. QR 스캔 시 PWA_ONLY → LINKED 업그레이드
+
     @Column(columnDefinition = "TEXT")
-    private String swSnapshot;         // Electron SW 스냅샷 (JSON)
+    private String swSnapshot;         // Electron SW 스냅샷 (JSON). PWA_ONLY 세션에서는 null
 
     @Column(columnDefinition = "TEXT")
     private String hwFrames;           // PWA HW 프레임 (Base64 JSON 배열)
@@ -180,6 +177,11 @@ public class DiagnosisSession {
     public enum SessionStatus {
         WAITING, SW_READY, HW_READY, DIAGNOSING, DONE
     }
+
+    public enum SessionType {
+        PWA_ONLY,  // PWA 앱 시작 시 자동 생성. swSnapshot null. QR 스캔 시 LINKED로 업그레이드
+        LINKED     // Electron이 생성하고 PWA가 QR로 합류한 세션. 기존 PWA_ONLY 세션은 폐기
+    }
 }
 ```
 
@@ -187,7 +189,8 @@ public class DiagnosisSession {
 CREATE TABLE diagnosis_session (
     session_id         VARCHAR PRIMARY KEY,
     status             VARCHAR NOT NULL DEFAULT 'WAITING',
-    sw_snapshot        TEXT,
+    session_type       VARCHAR NOT NULL DEFAULT 'PWA_ONLY', -- PWA_ONLY | LINKED
+    sw_snapshot        TEXT,           -- LINKED 세션에서만 채워짐
     hw_frames          TEXT,
     diagnosis_result   TEXT,
     auth_token         VARCHAR,

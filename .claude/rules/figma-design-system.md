@@ -1,288 +1,147 @@
-# Figma 디자인 시스템 규칙
+# 디자인 시스템 규칙
 
-> Figma MCP로 디자인을 가져올 때 이 규칙을 참조하여 코드로 변환합니다.
+> 출처: Figma "Untitled" (GlSyRrVWR7Q8R8mGeUwoxX) — AI 생성 목업 기반, 레이아웃·색상 구조만 채택.
+> 구현 파일: `src/styles/tokens.css` → `global.css` → `animations.css` 순으로 import.
 
 ---
 
-## 1. 토큰 정의 위치
+## 색상 사용 원칙
 
-| 파일 | 역할 |
-|---|---|
-| `src/styles/tokens.css` | CSS Custom Properties 전체 정의 (단일 진실 공급원) |
-| `src/styles/animations.css` | `@keyframes diagPulse` 등 애니메이션 정의 |
-| `src/styles/global.css` | 리셋 + body 기본 스타일 |
+| 목적 | 토큰 | 값 |
+|---|---|---|
+| 앱 배경 | `--color-bg-base` | `#f9f9f9` |
+| 카드 배경 | `--color-bg-card` | `#ffffff` |
+| 서브 섹션 배경 | `--color-bg-card-sub` | `#f2f4f4` |
+| 브랜드 (CTA, 활성) | `--color-brand` | `#4355b9` |
+| 브랜드 틴트 (뱃지 배경) | `--color-brand-light` | `#dee0ff` |
+| 주 텍스트 | `--color-text-primary` | `#2d3335` |
+| 부 텍스트 | `--color-text-secondary` | `#5a6061` |
+| 비활성/placeholder | `--color-text-hint` | `#adb3b4` |
 
-**토큰은 반드시 CSS Custom Property로만 사용합니다. 하드코딩 금지.**
+- **직접 색상값 하드코딩 금지** — 반드시 CSS 변수 사용
+- 상태 색상: `--color-success` / `--color-warning` / `--color-error` 사용
 
-```css
-/* ✅ 올바른 사용 */
-color: var(--color-accent);
+---
 
-/* ❌ 금지 */
-color: #3182f6;
+## 타이포그래피 원칙
+
+- **폰트**: Inter (Google Fonts) — `global.css`에서 import
+- **피그마 원본 대비 조정**: 초보자 친화 가독성을 위해 Thin→Light, Light→Regular 한 단계 상향
+- **코드에서 클래스 사용**: `.text-hero` / `.text-h1` ~ `.text-sm` / `.text-label` / `.text-badge`
+- **UPPERCASE 레이블**: 반드시 `.text-label` 클래스 — 직접 `text-transform` 쓰지 말 것
+
 ```
-
----
-
-## 2. 색상 토큰
-
-```css
-:root {
-  /* 배경 */
-  --color-bg-base:    #ffffff;   /* 앱 전체 배경 */
-  --color-bg-surface: #f9fafb;   /* 카드, 패널 */
-  --color-bg-input:   #f2f4f6;   /* 입력창, 비활성 버튼 */
-
-  /* 강조 */
-  --color-accent:     #3182f6;   /* 주 강조색 (파랑) */
-  --color-accent-dim: #1b64da;   /* hover 상태 */
-
-  /* 신뢰도 */
-  --color-conf-high:    #05c46b; /* 80%+ */
-  --color-conf-high-bg: #f0fff8;
-  --color-conf-mid:     #ff9f43; /* 60~79% */
-  --color-conf-low:     #ff5e57; /* 60% 미만 */
-  --color-conf-low-bg:  #fff4f4;
-
-  /* 텍스트 */
-  --color-text-primary: #191f28;
-  --color-text-muted:   #4e5968;
-  --color-text-hint:    #6b7684; /* WCAG AA 충족 */
-
-  /* 테두리 */
-  --color-border: #e5e8eb;
-}
+히어로 제목:   56px / Light(300) / tracking -0.025em
+섹션 제목:     30px / Regular(400) / tracking -0.015em
+카드 제목:     24px / Regular(400)
+서브 제목:     18px / Bold(700) / tracking -0.015em
+본문:          14px / Regular(400)   ← 피그마 Light에서 상향
+소문자 설명:   12px / Regular(400)   ← 피그마 Light에서 상향
+섹션 레이블:   11px / SemiBold / UPPERCASE / tracking 0.05em
+모노 뱃지:     10px / Liberation Mono
 ```
 
 ---
 
-## 3. 타이포그래피
+## 레이아웃 원칙
 
-```css
-:root {
-  --font-sans: 'Pretendard', 'Noto Sans KR', sans-serif; /* UI 전반 */
-  --font-mono: 'JetBrains Mono', monospace;               /* 수치, 코드 */
-  --font-weight-regular: 400;
-  --font-weight-bold: 700;
-  --line-height-normal: 1.5;
-}
-```
+### PWA (모바일)
+- 기준 너비: 390px, 좌우 패딩 24px
+- 상단 고정 헤더: 64px (`.top-app-bar`)
+- 하단 고정 탭바: 64px (`.bottom-nav`) — frosted glass, `backdrop-filter: blur(6px)`
+- 콘텐츠 영역: `padding-top: 64px; padding-bottom: 64px` 확보 필수
 
-**Figma 폰트 매핑:**
-- Figma의 `Regular` → `font-weight: 400`
-- Figma의 `Bold` / `SemiBold` → `font-weight: 700`
-- 수치 표시 텍스트 → `font-family: var(--font-mono)`
+### Electron (데스크톱)
+- 좌측 사이드바: 256px 고정 (`.sidebar`)
+- 상단 헤더: 64px (좌측 256px 오프셋)
+- 콘텐츠 max-width: 1280px, 패딩 48px
+- 증상 입력창 max-width: 672px
 
 ---
 
-## 4. 스페이싱
+## 카드 계층
 
-```css
-:root {
-  --space-1:  4px;
-  --space-2:  8px;
-  --space-3:  12px;
-  --space-4:  16px;
-  --space-5:  20px;
-  --space-6:  24px;
-  --space-8:  32px;
-  --space-10: 40px;
-}
+```
+배경(#f9f9f9)
+  └─ 서브 섹션 카드(#f2f4f4, radius-lg)
+       └─ 일반 카드(#ffffff, radius-lg, shadow-card)
+            └─ 소형 아이콘 배경(#ffffff, radius-sm)
 ```
 
-**Figma 스페이싱 → CSS 변수 매핑:**
-- 4px 배수 → `--space-N` 사용
-- 컴포넌트 내부 padding → `--space-4` (16px) 기본
-- 섹션 간 간격 → `--space-6` ~ `--space-8`
+- 카드 radius: `--radius-md`(8px) 소형 / `--radius-lg`(12px) 일반 / `--radius-xl`(16px) 대형 섹션
+- 카드 shadow: `--shadow-card` (`0 1px 2px rgba(0,0,0,0.05)`) — 과도한 그림자 금지
 
 ---
 
-## 5. Border Radius
+## 브랜드 Glow 패턴 (피그마 핵심 요소)
+
+피그마에서 추출한 고유 디자인 언어. 3가지 상황에서만 사용:
+
+1. **활성 상태 dot**: `width: 8px; box-shadow: --glow-brand` → `.animate-glow-pulse`
+2. **프로그레스 바 fill**: `box-shadow: --glow-divider` (파란 glow 선)
+3. **브랜드 Divider**: `.divider-brand` 클래스 — 선의 40%만 채워진 브랜드 컬러
 
 ```css
-:root {
-  --radius-sm:   8px;   /* 배지, 태그, 인풋 */
-  --radius-md:   16px;  /* 카드, 패널 (기본) */
-  --radius-lg:   24px;  /* bottom-sheet 상단 */
-  --radius-pill: 999px; /* 버튼 pill 형태 */
-}
+/* ❌ 금지 — 임의 glow 남발 */
+box-shadow: 0 0 8px blue;
+
+/* ✅ 허용 — 토큰 사용 */
+box-shadow: var(--glow-brand);
 ```
 
 ---
 
-## 6. 컴포넌트 스타일 패턴
+## 뱃지 사용 규칙
 
-### 스타일링 방식
-- **CSS Modules** 사용 (`Component.module.css`)
-- Tailwind **미사용**
-- Styled Components **미사용**
+| 상태 | 클래스 | 용도 |
+|---|---|---|
+| 완료/정상 | `.badge` + `.text-badge` | PASSED, CONNECTED |
+| 성공 | `.badge-success` | RESOLVED |
+| 오류 | `.badge-error` | FAILED, ERROR |
+| 경고 | `.badge-warning` | WARNING |
 
-```jsx
-// ✅ 올바른 패턴
-import styles from './HypothesisCard.module.css';
-<div className={`${styles.card} ${styles.active}`} />
+- 뱃지 내부 텍스트는 반드시 UPPERCASE + `.text-badge` (Liberation Mono)
 
-// ❌ 인라인 스타일 금지 (토큰 참조 불가)
-<div style={{ color: '#3182f6' }} />
-```
+---
 
-### 버튼
+## 애니메이션 사용 규칙
 
-```css
-.btnPrimary {
-  background: var(--color-accent);
-  color: #fff;
-  border-radius: var(--radius-pill);
-  padding: var(--space-3) var(--space-6);
-  font-weight: var(--font-weight-bold);
-  transition: background var(--transition-fast);
-}
-.btnPrimary:hover { background: var(--color-accent-dim); }
+컴포넌트 진입: `.animate-fade-in-up` (기본) — 과도한 애니메이션 금지
+활성 상태 dot: `.animate-glow-pulse`
+로딩 상태: `.dot-loading` (3개 dot bounce)
+SSE 스트리밍 텍스트: `.typing-cursor`
+스켈레톤 로딩: `.skeleton`
+캡처 피드백: `.animate-capture-pop`
+stale 경고: `.animate-shake`
 
-.btnSecondary {
-  background: var(--color-bg-input);
-  color: var(--color-text-primary);
-  border-radius: var(--radius-pill);
-}
-```
+`prefers-reduced-motion` 대응 — `animations.css` 하단에 전역 처리됨.
 
-### 카드 (HypothesisCard)
+---
 
-```css
-.card {
-  background: var(--color-bg-surface);
-  border-radius: var(--radius-md);
-  border-left: 4px solid transparent;
-  box-shadow: 0 1px 8px rgba(0,0,0,0.08);
-  transition: all var(--transition-base);
-}
-.card.active { border-left-color: var(--color-accent); }
-.card.solved { background: var(--color-conf-high-bg); border-left-color: var(--color-conf-high); }
-.card.failed { background: var(--color-conf-low-bg); border-left-color: var(--color-conf-low); opacity: 0.5; }
-```
+## 피그마에서 제거한 요소 (구현 금지)
 
-### 시스템 수치 (SystemStatusBar)
+- PWA 배경의 회로/카메라 일러스트 이미지 → 배경은 단색 `#f9f9f9`만 사용
+- AI 더미 텍스트 (AES-256-GCM, Workstation ID 등) → 실제 앱 데이터로만 표시
+- 영문 전문용어 UI 레이블 → 한국어 친근체 사용 ("진단 시작", "연결됨" 등)
+
+---
+
+## import 순서
 
 ```css
-.normal   { color: var(--color-text-primary); }
-.warning  { color: var(--color-conf-mid); }
-.critical { color: var(--color-conf-low); animation: diagPulse 1s infinite; }
+/* main.tsx 또는 App.tsx 상단 */
+import './styles/tokens.css';
+import './styles/global.css';
+import './styles/animations.css';
+/* 이후 컴포넌트별 .module.css는 각 컴포넌트에서 import */
 ```
 
 ---
 
-## 7. 레이아웃 구조
+## 컴포넌트 CSS 작성 시 체크리스트
 
-### Electron (Desktop)
-
-```css
-.appShell {
-  display: grid;
-  grid-template-rows: 44px 1fr;
-  height: 100vh;
-}
-/* 상단: SystemStatusBar (44px 고정) */
-/* 하단: 메인 콘텐츠 영역 */
-```
-
-### PWA (Mobile)
-
-```css
-.appShell {
-  display: flex;
-  flex-direction: column;
-  height: 100dvh;
-}
-.cameraArea  { flex: 1; }
-.bottomSheet {
-  max-height: 55dvh;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  padding-bottom: max(var(--space-6), env(safe-area-inset-bottom));
-}
-```
-
----
-
-## 8. 아이콘
-
-- 라이브러리: `lucide-react`
-- Figma 아이콘 → lucide-react 아이콘명으로 매핑
-- 크기: `16px` (인라인), `20px` (버튼), `24px` (독립 아이콘)
-
-```jsx
-import { AlertCircle, CheckCircle, ChevronRight } from 'lucide-react';
-```
-
----
-
-## 9. 애니메이션
-
-```css
-/* animations.css에서만 정의 — 인라인 <style> 태그 금지 */
-@keyframes diagPulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
-}
-```
-
-```css
-:root {
-  --transition-fast: 0.15s ease;  /* 버튼 hover */
-  --transition-base: 0.2s ease;   /* 카드 상태 전환 */
-}
-```
-
----
-
-## 10. z-index 레이어
-
-```css
-:root {
-  --z-statusbar: 50;  /* SystemStatusBar */
-  --z-modal:    100;  /* QR 모달, 오버레이 */
-}
-```
-
----
-
-## 11. Figma → 코드 변환 규칙
-
-| Figma 속성 | 코드 변환 |
-|---|---|
-| Fill color | `var(--color-*)` CSS 변수로 교체 |
-| Corner radius | `var(--radius-*)` 변수로 교체 |
-| Auto layout gap | `gap: var(--space-N)` |
-| Auto layout padding | `padding: var(--space-N)` |
-| Text style | `font-family`, `font-weight` 변수 적용 |
-| Shadow | `box-shadow: 0 1px 8px rgba(0,0,0,0.08)` |
-| Opacity (disabled) | `opacity: 0.5` |
-
----
-
-## 12. 컴포넌트 파일 위치
-
-```
-src/
-├── styles/
-│   ├── tokens.css         ← CSS 변수 단일 정의
-│   ├── animations.css     ← @keyframes
-│   └── global.css         ← 리셋 + body
-├── components/
-│   ├── desktop/           ← Electron 전용
-│   ├── mobile/            ← PWA 전용
-│   └── shared/            ← 공통 (DiagnosisResult 등)
-```
-
----
-
-## 13. 에셋
-
-```
-public/
-├── pc-diagram.png         ← PC 부품 구조도 (SVG 오버레이용)
-│                             preserveAspectRatio="xMidYMid meet" 필수
-├── icons/icon-192.png
-└── opencv.js              ← Service Worker precache 대상
-```
-
-**PCDiagram 부품 키:** `GPU` `CPU` `RAM` `SSD` `HDD` `CPU_COOLER` `MAINBOARD` `M2_SSD`
+- [ ] CSS 변수(`var(--...)`)만 사용, 하드코딩 금지
+- [ ] 색상은 `tokens.css` 변수, 레이아웃 간격은 `--space-*` 변수
+- [ ] 폰트 크기/굵기는 `global.css` 클래스 또는 변수 참조
+- [ ] 애니메이션은 `animations.css` 클래스 사용
+- [ ] `prefers-reduced-motion`은 `animations.css`에서 전역 처리됨 — 개별 컴포넌트에서 중복 처리 불필요

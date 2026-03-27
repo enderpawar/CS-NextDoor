@@ -1764,3 +1764,858 @@ services:
       - key: ALLOWED_ORIGINS
         sync: false
 ```
+
+---
+
+## Phase 7-B — 라이브 카메라 가이드 모드
+
+> **핵심 설계 원칙**
+> - OpenCV: **연속 3프레임** 히스토그램 변화 감지 + CLAHE 전처리만 담당. BIOS 텍스트 OCR은 Gemini Vision에 위임.
+> - "라이브"의 실체: 변화 감지 → 2초 쿨다운 → Gemini 전송 → 5~10초 후 응답. 진짜 실시간 스트리밍 아님.
+> - EventSource는 GET만 지원 → POST 본문(프레임+히스토리) 전송 시 `fetch()` + `ReadableStream` 사용.
+> - UX 공백 해소: `STATIC_FIRST_GUIDE[context]` 즉시 표시 → 3단계 피드백(캡처됨/분석중/완료) → stale guide 경고.
+> - `useLiveFrameCapture`는 `currentHistRef`를 반환 — LiveGuideMode가 stale guide 비교에 사용. `[완료]` 태그는 반드시 `accumulated.includes()` 로 검사 (청크 분할 대응).
+
+---
+
+### Phase 7-B — `src/types/index.ts` 추가 타입
+
+```typescript
+// ── Live Camera Guide Mode ──────────────────────────────────────────────────
+export type GuideContext =
+  | 'BIOS_ENTRY'        // BIOS 진입 키 안내 (F2/Del/F10/F12)
+  | 'BOOT_MENU'         // USB·SSD 부팅 우선순위 설정
+  | 'WINDOWS_INSTALL'   // 파티션 설정 → 드라이버 설치
+  | 'BIOS_RESET'        // Load Defaults 위치 찾기
+  | 'SECURE_BOOT';      // CSM / Secure Boot 변경
+
+export interface GuideMessage {
+  role: 'user' | 'model';
+  text: string;
+}
+
+export interface GuideSession {
+  sessionId: string;
+  context: GuideContext;
+  status: 'ACTIVE' | 'DONE';
+}
+
+// GuideController.java FrameRequest DTO와 1:1 대응
+export interface FrameRequest {
+  frameBase64: string;
+  history: GuideMessage[];
+}
+```
+
+---
+
+### Phase 7-B — `src/hooks/useLiveFrameCapture.ts`
+
+```typescript
+import { useEffect, useRef, useCallback } from 'react';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const cv: any;
+
+interface Options {
+  videoRef: React.RefObject<HTMLVideoElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
+  // histSnapshot: 전송 당시 히스토그램 클론 — stale guide 감지에 사용. 호출자가 delete() 책임
+  onFrameChange: (base64: string, histSnapshot: any) => void;
+  enabled: boolean;
+  histThreshold?: number;    // 유사도 임계값. default 0.92 — 낮을수록 민감
+  cooldownMs?: number;       // 최소 전송 간격(ms). default 2000
+  changeFrames?: number;     // 연속 변화 감지 필요 프레임 수. default 3 (false positive 방지)
+}
+
+// OpenCV 역할: 변화 감지(compareHist) + CLAHE 전처리만.
+// BIOS 텍스트 OCR은 Gemini Vision에 위임 — 별도 OCR 파이프라인 불필요.
+export default function useLiveFrameCapture({
+  videoRef,
+  canvasRef,
+  onFrameChange,
+  enabled,
+  histThreshold = 0.92,
+  cooldownMs = 2000,
+  changeFrames = 3,
+}: Options) {
+  const rafRef = useRef<number>(0);
+  const prevHistRef = useRef<any>(null);
+  const lastSentRef = useRef<number>(0);
+  const claheRef = useRef<any>(null); // CLAHE 객체: useRef로 1회 생성, 언마운트 시 delete()
+  // 연속 3프레임 변화 감지 카운트 — 손 떨림/Rolling Shutter false positive 차단
+  const changeCountRef = useRef(0);
+  // 최신 프레임 히스토그램 — stale guide 감지 시 LiveGuideMode가 읽음 (delete() 책임은 이 훅)
+  const currentHistRef = useRef<any>(null);
+
+  const processFrame = useCallback(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      rafRef.current = requestAnimationFrame(processFrame);
+      return;
+    }
+
+    const ctx = canvas.getContext('2d')!;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+
+    // Mat 선언을 try 바깥에서 하면 finally에서 .delete() 보장 불가 → 반드시 내부에서 선언
+    const src = cv.matFromImageData(ctx.getImageData(0, 0, canvas.width, canvas.height));
+    const gray = new cv.Mat();
+    const enhanced = new cv.Mat();
+    const hist = new cv.Mat();
+    const mask = new cv.Mat(); // calcHist mask — 빈 Mat으로 전체 영역 사용
+
+    try {
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+      // CLAHE — BIOS 저대비 화면 보정. clipLimit 2.0, tileSize 8×8
+      if (!claheRef.current) {
+        claheRef.current = new cv.CLAHE(2.0, new cv.Size(8, 8));
+      }
+      claheRef.current.apply(gray, enhanced);
+
+      // 히스토그램 계산 후 0~1 정규화
+      cv.calcHist([enhanced], [0], mask, hist, [256], [0, 256]);
+      cv.normalize(hist, hist, 0, 1, cv.NORM_MINMAX);
+
+      // 최신 프레임 히스토그램 항상 갱신 — stale guide 감지 시 LiveGuideMode가 읽음
+      currentHistRef.current?.delete();
+      currentHistRef.current = hist.clone();
+
+      const now = Date.now();
+
+      if (prevHistRef.current) {
+        const similarity = cv.compareHist(prevHistRef.current, hist, cv.HISTCMP_CORREL);
+        const cooledDown = now - lastSentRef.current > cooldownMs;
+
+        if (similarity < histThreshold && cooledDown) {
+          changeCountRef.current++;
+          // 연속 changeFrames(기본 3)프레임 모두 변화 감지 시만 전송
+          // → 손 떨림/Rolling Shutter/iOS 자동초점 false positive 차단
+          if (changeCountRef.current >= changeFrames) {
+            changeCountRef.current = 0;
+            prevHistRef.current.delete();
+            prevHistRef.current = hist.clone();
+            lastSentRef.current = now;
+            // histSnapshot: stale guide 감지용 클론 — 호출자(LiveGuideMode)가 delete() 책임
+            const histSnapshot = hist.clone();
+            // 전처리 이미지(enhanced) 아닌 원본(canvas) 전송 — Gemini 텍스트 인식률 보장
+            onFrameChange(canvas.toDataURL('image/jpeg', 0.8).split(',')[1], histSnapshot);
+          }
+        } else {
+          // 변화 없는 프레임 1개라도 끼이면 카운트 리셋 (실제 전환과 아티팩트 구별)
+          changeCountRef.current = 0;
+        }
+      } else {
+        // 첫 프레임: 이전 히스토그램 없음 → 즉시 전송
+        prevHistRef.current = hist.clone();
+        lastSentRef.current = now;
+        const histSnapshot = hist.clone();
+        onFrameChange(canvas.toDataURL('image/jpeg', 0.8).split(',')[1], histSnapshot);
+      }
+    } finally {
+      // JS GC는 WASM 힙 미회수 → 예외 발생해도 반드시 해제
+      [src, gray, enhanced, hist, mask].forEach(m => m.delete());
+    }
+
+    rafRef.current = requestAnimationFrame(processFrame);
+  }, [videoRef, canvasRef, onFrameChange, histThreshold, cooldownMs]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    rafRef.current = requestAnimationFrame(processFrame);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      // CLAHE + 이전 히스토그램 + 현재 히스토그램 Mat 모두 해제
+      prevHistRef.current?.delete();
+      prevHistRef.current = null;
+      currentHistRef.current?.delete();
+      currentHistRef.current = null;
+      claheRef.current?.delete();
+      claheRef.current = null;
+    };
+  }, [enabled, processFrame]);
+
+  // stale guide 감지를 위해 최신 히스토그램을 외부에 노출
+  return { currentHistRef };
+}
+```
+
+---
+
+### Phase 7-B — `src/hooks/useGeminiLiveGuide.ts`
+
+```typescript
+import { useState, useRef, useCallback } from 'react';
+import { GuideContext, GuideMessage, GuideSession } from '../types';
+
+interface Return {
+  session: GuideSession | null;
+  streamText: string;
+  isStreaming: boolean;
+  startSession: (context: GuideContext) => Promise<void>;
+  sendFrame: (base64: string, histSnapshot?: any) => void;
+  endSession: () => void;
+}
+
+const API_BASE = process.env.REACT_APP_API_URL ?? 'http://localhost:8080';
+// 히스토리 최대 6턴 슬라이딩 — 토큰 누적 방지
+const MAX_HISTORY = 6;
+
+export default function useGeminiLiveGuide(): Return {
+  const [session, setSession] = useState<GuideSession | null>(null);
+  const [streamText, setStreamText] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const historyRef = useRef<GuideMessage[]>([]);
+  // 동시 전송 방지: 이전 응답 완료 전 새 프레임 무시
+  const isSendingRef = useRef(false);
+  // AbortController: endSession 또는 언마운트 시 진행 중 Gemini 스트림 즉시 취소
+  const abortRef = useRef<AbortController | null>(null);
+
+  const startSession = useCallback(async (context: GuideContext) => {
+    const res = await fetch(`${API_BASE}/api/guide/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context }),
+    });
+    const { sessionId } = await res.json() as { sessionId: string };
+    setSession({ sessionId, context, status: 'ACTIVE' });
+    historyRef.current = [];
+  }, []);
+
+  const endSession = useCallback(() => {
+    if (!session) return;
+    abortRef.current?.abort(); // 진행 중 Gemini 스트림 즉시 취소 (AbortError → catch에서 무시)
+    abortRef.current = null;
+    // fire-and-forget — 응답 대기 불필요
+    fetch(`${API_BASE}/api/guide/${session.sessionId}`, { method: 'DELETE' });
+    setSession(s => s ? { ...s, status: 'DONE' } : null);
+    historyRef.current = [];
+    setStreamText('');
+  }, [session]);
+
+  const sendFrame = useCallback(async (base64: string) => {
+    if (!session || isSendingRef.current) return;
+    abortRef.current = new AbortController(); // 매 전송마다 새 controller 생성
+    isSendingRef.current = true;
+    setIsStreaming(true);
+    setStreamText('');
+
+    let accumulated = '';
+    try {
+      const response = await fetch(`${API_BASE}/api/guide/${session.sessionId}/frame`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          frameBase64: base64,
+          history: historyRef.current.slice(-MAX_HISTORY),
+        }),
+        signal: abortRef.current.signal, // AbortController 연결
+      });
+
+      if (!response.body) return;
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      // SSE 포맷 파싱: "data: {text}\n\n"
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            // 히스토리에 모델 응답 추가 후 슬라이딩
+            historyRef.current = [
+              ...historyRef.current,
+              { role: 'model', text: accumulated },
+            ].slice(-MAX_HISTORY);
+            // [완료] 태그: 청크 분할 대응을 위해 반드시 누적 문자열에서 검사
+            // (청크별 data === '[완료]' 단순 비교 금지 — 분할 시 탐지 실패)
+            if (accumulated.includes('[완료]')) endSession();
+            return;
+          }
+          accumulated += data;
+          setStreamText(accumulated);
+        }
+      }
+    } catch (e) {
+      // AbortError는 endSession() 또는 언마운트에 의한 정상 취소 — 무시
+      if ((e as Error).name !== 'AbortError') console.error('[useGeminiLiveGuide] sendFrame error:', e);
+    } finally {
+      isSendingRef.current = false;
+      setIsStreaming(false);
+      abortRef.current = null;
+    }
+  }, [session, endSession]);
+
+  return { session, streamText, isStreaming, startSession, sendFrame, endSession };
+}
+```
+
+---
+
+### Phase 7-B — `src/components/mobile/LiveGuideMode.tsx`
+
+```typescript
+import { useRef, useState, useCallback, useEffect } from 'react';
+import { GuideContext } from '../../types';
+import GuideContextSelector from './GuideContextSelector';
+import GuideBubble from './GuideBubble';
+import useLiveFrameCapture from '../../hooks/useLiveFrameCapture';
+import useGeminiLiveGuide from '../../hooks/useGeminiLiveGuide';
+import useOpenCV from '../../hooks/useOpenCV';
+import styles from './LiveGuideMode.module.css';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const cv: any;
+
+// GuideContext별 첫 안내 — 세션 시작 즉시 표시, Gemini 응답 도착 시 교체
+// 세션 시작 → 첫 Gemini 응답까지 최대 10초 공백으로 초보자 혼란 방지
+const STATIC_FIRST_GUIDE: Record<GuideContext, string> = {
+  BIOS_ENTRY:       'PC 재시작 후 제조사 로고가 뜨면 Del 또는 F2 키를 빠르게 눌러주세요.',
+  BOOT_MENU:        '재시작 후 F8, F11, F12 중 하나를 눌러보세요 (제조사마다 다름).',
+  WINDOWS_INSTALL:  'USB가 연결됐는지 확인 후 카메라를 화면에 비춰주세요.',
+  BIOS_RESET:       'BIOS 진입 후 F9 (Load Defaults) 또는 Setup Defaults 항목을 찾아주세요.',
+  SECURE_BOOT:      'BIOS 진입 후 Boot 또는 Security 탭으로 이동해주세요.',
+};
+
+type CaptureState = 'idle' | 'captured' | 'analyzing' | 'done';
+
+export default function LiveGuideMode() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [guideContext, setGuideContext] = useState<GuideContext | null>(null);
+  const { ready: cvReady } = useOpenCV();
+
+  // 3단계 피드백 상태 (idle → captured → analyzing → done)
+  const [captureState, setCaptureState] = useState<CaptureState>('idle');
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sentAtRef = useRef<number>(0);
+
+  // stale guide 감지 — 응답 도착 시 전송 당시 화면과 현재 화면 비교
+  const [staleGuide, setStaleGuide] = useState(false);
+  const capturedHistRef = useRef<any>(null); // 전송 당시 히스토그램 클론 (delete() 이 컴포넌트 책임)
+
+  const { session, streamText, isStreaming, startSession, sendFrame, endSession } =
+    useGeminiLiveGuide();
+
+  // 프레임 전송 핸들러 — useLiveFrameCapture의 onFrameChange 콜백
+  const handleFrameCapture = useCallback((base64: string, histSnapshot: any) => {
+    if (!base64) return;
+
+    // 1단계: 캡처됨 (즉시)
+    setCaptureState('captured');
+    setStaleGuide(false);
+    capturedHistRef.current?.delete();
+    capturedHistRef.current = histSnapshot; // 전송 당시 히스토그램 보관
+
+    sentAtRef.current = Date.now();
+    setElapsedMs(0);
+
+    // 0.5초 후 2단계: 분석 중 + 경과 시간 타이머 시작
+    setTimeout(() => {
+      setCaptureState('analyzing');
+      elapsedTimerRef.current = setInterval(() => {
+        setElapsedMs(Date.now() - sentAtRef.current);
+      }, 1000);
+    }, 500);
+
+    sendFrame(base64);
+  }, [sendFrame]);
+
+  // rAF 루프: OpenCV 준비 + 세션 활성 시만 시작
+  // currentHistRef: 매 프레임 갱신되는 최신 히스토그램 (stale guide 비교에 사용)
+  const { currentHistRef } = useLiveFrameCapture({
+    videoRef,
+    canvasRef,
+    onFrameChange: handleFrameCapture,
+    enabled: !!session && session.status === 'ACTIVE' && cvReady,
+  });
+
+  // 3단계: 응답 도착 감지 → stale guide 비교
+  useEffect(() => {
+    if (isStreaming || captureState !== 'analyzing') return;
+
+    // 경과 타이머 종료
+    if (elapsedTimerRef.current) {
+      clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = null;
+    }
+    setCaptureState('done');
+
+    // 전송 당시 히스트 vs 현재 히스트 비교 → 0.7 미만이면 화면이 바뀐 것
+    if (capturedHistRef.current && currentHistRef.current) {
+      const similarity: number = cv.compareHist(
+        capturedHistRef.current,
+        currentHistRef.current,
+        cv.HISTCMP_CORREL,
+      );
+      setStaleGuide(similarity < 0.7);
+    }
+
+    capturedHistRef.current?.delete();
+    capturedHistRef.current = null;
+  }, [isStreaming, captureState, currentHistRef]);
+
+  const handleContextSelect = useCallback(async (context: GuideContext) => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+    });
+    streamRef.current = stream;
+    videoRef.current!.srcObject = stream;
+    setGuideContext(context);
+    await startSession(context);
+  }, [startSession]);
+
+  const handleEnd = useCallback(() => {
+    if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+    capturedHistRef.current?.delete();
+    capturedHistRef.current = null;
+    endSession();
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setGuideContext(null);
+    setCaptureState('idle');
+  }, [endSession]);
+
+  // 언마운트 cleanup
+  useEffect(() => {
+    return () => {
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+      capturedHistRef.current?.delete();
+      capturedHistRef.current = null;
+    };
+  }, []);
+
+  // 경과 시간 보조 메시지
+  const elapsedSec = Math.round(elapsedMs / 1000);
+  const elapsedMsg =
+    elapsedMs > 7000 ? '거의 다 됐어요...' :
+    elapsedMs > 3000 ? 'BIOS는 천천히 조작해도 괜찮아요. 잠시만요!' :
+    null;
+
+  if (!guideContext || !session) {
+    return <GuideContextSelector onSelect={handleContextSelect} />;
+  }
+
+  return (
+    <div className={styles.container}>
+      {/* 카메라 뷰 — 전체 배경 */}
+      <video ref={videoRef} autoPlay playsInline muted className={styles.camera} />
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+      {/* 3단계 피드백 오버레이 */}
+      {captureState === 'captured' && (
+        <div className={styles.captureBadge}>📸 캡처됨</div>
+      )}
+      {captureState === 'analyzing' && (
+        <div className={styles.statusBadge}>
+          <span className={styles.spinner} aria-hidden="true" />
+          ⏳ Gemini 분석 중... ({elapsedSec}초)
+          {elapsedMsg && <span className={styles.elapsedMsg}>{elapsedMsg}</span>}
+        </div>
+      )}
+      {captureState === 'idle' && (
+        <div className={styles.statusBadge}>✓ 대기 중 — 화면 변화를 감지하면 자동 분석해요</div>
+      )}
+
+      {/* 하단 가이드 패널 */}
+      <div className={styles.bottomSheet}>
+        {/* stale guide 경고 — 응답이 구버전 화면 기준일 때 */}
+        {staleGuide && (
+          <div className={styles.staleWarning}>
+            ⚠️ 화면이 바뀐 것 같아요. 현재 화면을 다시 비춰주세요.
+          </div>
+        )}
+
+        {/* streamText 없으면 STATIC_FIRST_GUIDE 즉시 표시, 응답 도착 시 자연스럽게 교체 */}
+        <GuideBubble
+          text={streamText || STATIC_FIRST_GUIDE[guideContext]}
+          isStreaming={isStreaming}
+          subText={captureState === 'done' && !staleGuide ? '이 화면 기준 안내' : undefined}
+        />
+
+        <div className={styles.actions}>
+          {/* 수동 분석 — 현재 프레임 즉시 전송 */}
+          <button
+            className={styles.btnSecondary}
+            onClick={() => {
+              const snap = currentHistRef.current?.clone() ?? null;
+              const base64 = canvasRef.current
+                ?.toDataURL('image/jpeg', 0.8).split(',')[1] ?? '';
+              handleFrameCapture(base64, snap);
+            }}
+            disabled={isStreaming}
+          >
+            지금 바로 분석
+          </button>
+          <button className={styles.btnDanger} onClick={handleEnd}>
+            가이드 종료
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+### Phase 7-B — `src/components/mobile/GuideBubble.tsx`
+
+```typescript
+import styles from './GuideBubble.module.css';
+
+interface Props {
+  text: string;
+  isStreaming: boolean;
+  subText?: string; // "이 화면 기준 안내" 등 응답 도착 시 표시
+}
+
+// 스트리밍 타이핑 효과 — text는 청크 누적값 또는 STATIC_FIRST_GUIDE, isStreaming 중 커서 표시
+export default function GuideBubble({ text, isStreaming, subText }: Props) {
+  return (
+    <div className={styles.bubble}>
+      <span className={styles.avatar}>🤓</span>
+      <div className={styles.content}>
+        {text}
+        {isStreaming && <span className={styles.cursor} aria-hidden="true" />}
+        {subText && !isStreaming && (
+          <span className={styles.subText}>{subText}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+```css
+/* GuideBubble.module.css */
+.bubble {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4);
+}
+
+.avatar {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.content {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+}
+
+/* 타이핑 커서 */
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--color-accent);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink 0.8s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* "이 화면 기준 안내" 서브텍스트 */
+.subText {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: 12px;
+  color: var(--color-text-hint);
+}
+```
+
+---
+
+### Phase 7-B — `src/components/mobile/GuideContextSelector.tsx`
+
+```typescript
+import { GuideContext } from '../../types';
+import styles from './GuideContextSelector.module.css';
+
+const GUIDE_OPTIONS: { value: GuideContext; label: string; desc: string }[] = [
+  { value: 'BIOS_ENTRY',      label: 'BIOS 진입',        desc: '제조사별 진입 키 (F2/Del/F12)' },
+  { value: 'BOOT_MENU',       label: '부팅 순서 변경',   desc: 'USB·SSD 우선순위 설정' },
+  { value: 'WINDOWS_INSTALL', label: 'Windows 설치',     desc: '파티션 설정 → 드라이버 설치' },
+  { value: 'BIOS_RESET',      label: 'BIOS 초기화',      desc: 'Load Defaults 위치 찾기' },
+  { value: 'SECURE_BOOT',     label: 'Secure Boot 설정', desc: 'CSM / Secure Boot 변경' },
+];
+
+interface Props {
+  onSelect: (context: GuideContext) => void;
+}
+
+export default function GuideContextSelector({ onSelect }: Props) {
+  return (
+    <div className={styles.container}>
+      <h2 className={styles.title}>어떤 작업을 도와드릴까요?</h2>
+      <p className={styles.hint}>
+        카메라로 화면을 비추면 AI가 단계별로 안내해드려요.
+        <br />
+        <strong>모니터에서 30~50cm 거리에서 정면으로 비춰주세요.</strong>
+      </p>
+      {GUIDE_OPTIONS.map(opt => (
+        <button
+          key={opt.value}
+          className={styles.optionBtn}
+          onClick={() => onSelect(opt.value)}
+        >
+          <span className={styles.label}>{opt.label}</span>
+          <span className={styles.desc}>{opt.desc}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+---
+
+### Phase 7-B — `backend/.../controller/GuideController.java`
+
+```java
+@RestController
+@RequestMapping("/api/guide")
+@RequiredArgsConstructor
+public class GuideController {
+
+    private final LiveGuideService liveGuideService;
+
+    // 가이드 세션 시작 — context 전달, sessionId 반환
+    @PostMapping("/start")
+    public ResponseEntity<Map<String, String>> startSession(
+            @RequestBody Map<String, String> body) {
+        String sessionId = liveGuideService.createSession(body.get("context"));
+        return ResponseEntity.ok(Map.of("sessionId", sessionId));
+    }
+
+    // 프레임 분석 — SSE 스트리밍 응답
+    // EventSource는 GET만 지원 → 클라이언트는 fetch() + ReadableStream으로 수신
+    @PostMapping(value = "/{sessionId}/frame", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter analyzeFrame(
+            @PathVariable String sessionId,
+            @RequestBody FrameRequest req) {
+        // 60초 타임아웃 — Gemini 응답이 느려도 조기 종료 방지
+        SseEmitter emitter = new SseEmitter(60_000L);
+        liveGuideService.streamFrameAnalysis(sessionId, req, emitter);
+        return emitter;
+    }
+
+    // 가이드 세션 종료 (수동 또는 [완료] 태그 감지 시 클라이언트 자동 호출)
+    @DeleteMapping("/{sessionId}")
+    public ResponseEntity<Void> endSession(@PathVariable String sessionId) {
+        liveGuideService.endSession(sessionId);
+        return ResponseEntity.noContent().build();
+    }
+}
+```
+
+```java
+// FrameRequest.java — GuideController 전용 DTO
+public record FrameRequest(
+    String frameBase64,
+    List<GuideMessage> history
+) {}
+
+public record GuideMessage(
+    String role,   // "user" | "model"
+    String text
+) {}
+```
+
+---
+
+### Phase 7-B — `backend/.../service/LiveGuideService.java`
+
+```java
+@Service
+@Slf4j
+public class LiveGuideService {
+
+    private final GeminiService geminiService;
+    // 인메모리 세션 맵 — DB 영속화 불필요 (재시작 시 소멸 허용)
+    private final Map<String, GuideSessionState> sessions = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+
+    public LiveGuideService(GeminiService geminiService) {
+        this.geminiService = geminiService;
+    }
+
+    public String createSession(String context) {
+        String sessionId = UUID.randomUUID().toString();
+        sessions.put(sessionId, new GuideSessionState(context));
+        // 15분 후 자동 소멸
+        scheduler.schedule(() -> sessions.remove(sessionId), 15, TimeUnit.MINUTES);
+        return sessionId;
+    }
+
+    public void streamFrameAnalysis(String sessionId, FrameRequest req, SseEmitter emitter) {
+        GuideSessionState state = sessions.get(sessionId);
+        if (state == null) {
+            emitter.completeWithError(new IllegalStateException("가이드 세션을 찾을 수 없어요"));
+            return;
+        }
+
+        // Gemini 호출은 별도 스레드 — 컨트롤러 스레드 블로킹 방지
+        CompletableFuture.runAsync(() -> {
+            try {
+                String systemPrompt = buildSystemPrompt(state.context());
+                geminiService.streamGuideResponse(
+                    systemPrompt,
+                    req.history(),
+                    req.frameBase64(),
+                    chunk -> {
+                        try {
+                            // "data: {chunk}\n\n" SSE 포맷으로 전송
+                            emitter.send(SseEmitter.event().data(chunk));
+                        } catch (IOException e) {
+                            emitter.completeWithError(e);
+                        }
+                    }
+                );
+                emitter.send(SseEmitter.event().data("[DONE]"));
+                emitter.complete();
+            } catch (Exception e) {
+                log.error("Guide frame analysis failed: {}", e.getMessage());
+                emitter.completeWithError(e);
+            }
+        });
+    }
+
+    public void endSession(String sessionId) {
+        sessions.remove(sessionId);
+    }
+
+    private String buildSystemPrompt(String context) {
+        String goal = switch (context) {
+            case "BIOS_ENTRY"      -> "BIOS 진입 (제조사별 키: F2/Del/F10/F12)";
+            case "BOOT_MENU"       -> "USB·SSD 부팅 우선순위 변경";
+            case "WINDOWS_INSTALL" -> "Windows 설치 — 파티션 설정부터 드라이버 설치까지";
+            case "BIOS_RESET"      -> "BIOS Load Defaults (초기화) 위치 찾기";
+            case "SECURE_BOOT"     -> "CSM / Secure Boot 설정 변경";
+            default                -> context;
+        };
+        return """
+            당신은 PC 수리 도우미 '옆집 컴공생'입니다. 사용자가 카메라로 PC 화면을 비추고 있어요.
+            현재 목표: %s
+            규칙:
+            - 화면에 보이는 내용을 먼저 파악하세요.
+            - 다음에 해야 할 행동 1가지만 짧게 안내하세요 (2문장 이내).
+            - 현재 화면이 목표 완료 상태라면 반드시 '[완료]' 태그를 포함하세요.
+            - 한국어, 친근한 공대생 말투 (존댓말 사용), 전문용어는 괄호로 설명.
+            - 화면이 흐리거나 반사가 심하면 "화면을 좀 더 정면에서 비춰주세요" 라고만 안내하세요.
+            """.formatted(goal);
+    }
+
+    // 세션 상태 내부 레코드
+    record GuideSessionState(String context) {}
+}
+```
+
+---
+
+### Phase 7-B — `src/components/mobile/LiveGuideMode.module.css`
+
+```css
+.container {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  background: #000;
+  overflow: hidden;
+}
+
+.camera {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 좌상단 상태 인디케이터 */
+.statusBadge {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 13px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(8px);
+}
+
+.statusBadge.analyzing {
+  color: var(--color-conf-mid);
+  animation: diagPulse 1s infinite;
+}
+
+/* 하단 가이드 패널 */
+.bottomSheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 55dvh;
+  background: var(--color-bg-base);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: var(--space-5) var(--space-4);
+  padding-bottom: max(var(--space-6), env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.btnSecondary {
+  flex: 1;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-pill);
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--font-weight-bold);
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.btnSecondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnDanger {
+  flex: 1;
+  background: var(--color-conf-low-bg);
+  color: var(--color-conf-low);
+  border-radius: var(--radius-pill);
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--font-weight-bold);
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+```

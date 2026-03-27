@@ -1,0 +1,59 @@
+{
+  "name": "nextdoor-cs",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/electron/main.js",
+  "scripts": {
+    "pwa:dev": "vite --mode pwa --port 3000",
+    "pwa:build": "vite build --mode pwa",
+    "pwa:preview": "vite preview",
+    "electron:compile": "tsc -p tsconfig.electron.json",
+    "electron:dev": "concurrently -k -n VITE,TSC,ELECTRON \"vite --mode electron --port 3000\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "vite build --mode electron && tsc -p tsconfig.electron.json && electron-builder",
+    "backend:dev": "cd backend && ./mvnw spring-boot:run",
+    "type-check": "tsc --noEmit",
+    "test": "echo No tests configured yet && exit 0"
+  },
+  "dependencies": {
+    "@stomp/stompjs": "^7.0.0",
+    "jsqr": "^1.4.0",
+    "lucide-react": "^0.378.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-qr-code": "^2.0.15",
+    "sockjs-client": "^1.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/sockjs-client": "^1.5.4",
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^8.2.2",
+    "electron": "^30.0.6",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.nextdoorcs.app",
+    "productName": "옆집 컴공생",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/electron/**/*",
+      "dist/renderer/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icons/icon-256.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "public/icons/icon-256.png"
+    }
+  }
+}
