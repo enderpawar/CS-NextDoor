@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 
 export interface FpsDrop {
   timestamp: string;
@@ -71,6 +71,11 @@ export function useFpsMonitor() {
     setDrops([]);
     fpsHistoryRef.current = [];
   }, []);
+
+  // 언마운트 시 rAF 루프 자동 정리
+  useEffect(() => {
+    return () => stop();
+  }, [stop]);
 
   return { fps, drops, start, stop, reset };
 }

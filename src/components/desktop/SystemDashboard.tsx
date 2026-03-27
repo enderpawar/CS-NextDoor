@@ -154,10 +154,10 @@ function Dashboard({ sysInfo }: Props) {
       {sysInfo.disk && (
         <StatCard label="디스크 I/O">
           <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            읽기: {sysInfo.disk.read.toFixed(0)} B/s
+            읽기: {(sysInfo.disk.read / 1024).toFixed(1)} MB/s
           </p>
           <p className="text-sm" style={{ color: 'var(--color-text-secondary)', marginTop: 'var(--space-1)' }}>
-            쓰기: {sysInfo.disk.write.toFixed(0)} B/s
+            쓰기: {(sysInfo.disk.write / 1024).toFixed(1)} MB/s
           </p>
         </StatCard>
       )}
@@ -197,6 +197,7 @@ export default function SystemDashboard() {
             gap: 'var(--space-4)',
           }}
         >
+          <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
