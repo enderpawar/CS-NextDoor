@@ -398,7 +398,7 @@ useEffect(() => {
   capturedHistRef.current = null;
 }, [isStreaming]);
 
-// JSX — GuideBubble 위에 조건부 경고 표시
+// TSX — GuideBubble 위에 조건부 경고 표시
 {staleGuide && (
   <div className={styles.staleWarning}>
     ⚠️ 화면이 바뀐 것 같아요. 현재 화면을 다시 비춰주세요.

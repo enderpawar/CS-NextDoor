@@ -20,7 +20,7 @@
 | **PWA** | Progressive Web App. 브라우저에서 실행되지만 앱처럼 설치/오프라인 동작. manifest.json + Service Worker 필요 |
 | **getDisplayMedia()** | 브라우저 API. 사용자 화면(모니터 전체 또는 특정 창)을 스트림으로 캡처. HTTPS 필수 |
 | **rAF (requestAnimationFrame)** | 브라우저가 다음 화면을 그리기 전 콜백을 호출하는 API. FPS 측정에 사용 |
-| **FPS 드랍** | 초당 프레임 수가 기준(60fps) 이하로 떨어지는 현상. 30fps 미만이면 사용자가 끊김을 체감 |
+| **FPS 드랍** | 초당 프레임 수가 갑자기 하락하는 현상. (ex) 144fps 유지중 100fps로 하락. 200fps 유지 중 170으로 하락), 특정 기준치가 아닌 사용자 환경 마다 체감 되는 하락 현상을 의미 |
 | **Long Task** | 브라우저 메인 스레드를 50ms 이상 블로킹하는 작업. `PerformanceObserver`로 감지 |
 | **PerformanceObserver** | 브라우저 성능 타임라인 이벤트(Long Task, Navigation 등)를 구독하는 Web API |
 | **Service Worker** | 브라우저 백그라운드에서 실행되는 스크립트. 네트워크 요청 가로채기 + 오프라인 캐시 담당 |
