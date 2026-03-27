@@ -1,0 +1,185 @@
+package com.nextdoorcs.service;
+
+import com.nextdoorcs.exception.DiagnosisException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+public class GeminiService {
+
+    @Value("${gemini.api.key}")
+    private String apiKey;
+
+    // gemini-3.1-pro-preview 접근 가능 시 application.properties에서 변경
+    @Value("${gemini.model:gemini-2.0-flash}")
+    private String model;
+
+    private static final String GEMINI_BASE_URL =
+        "https://generativelanguage.googleapis.com/v1beta/models/";
+
+    private final RestTemplate restTemplate;
+
+    /**
+     * 이미지 단독 진단 (Phase 1 기본)
+     */
+    public String diagnoseImage(String base64Image, String symptom) {
+        List<Map<String, Object>> parts = List.of(
+            Map.of("text", buildHardwareSystemPrompt(symptom, null)),
+            Map.of("inline_data", Map.of(
+                "mime_type", "image/jpeg",
+                "data", base64Image
+            ))
+        );
+        return callGemini(parts);
+    }
+
+    /**
+     * 이미지 + 오디오 멀티모달 진단 (Phase 8 확장)
+     * audioMimeType: 실제 녹음 포맷 전달 필수 ("audio/webm" | "audio/mp4")
+     */
+    public String diagnoseMultimodal(
+            String base64Image,
+            byte[] audioBytes,
+            String audioMimeType,
+            String symptom,
+            String biosType) {
+
+        List<Map<String, Object>> parts = new ArrayList<>();
+        parts.add(Map.of("text", buildHardwareSystemPrompt(symptom, biosType)));
+        parts.add(Map.of("inline_data", Map.of("mime_type", "image/jpeg", "data", base64Image)));
+
+        if (audioBytes != null) {
+            String mimeType = (audioMimeType != null && !audioMimeType.isBlank())
+                ? audioMimeType
+                : "audio/webm";  // iOS mp4는 클라이언트가 명시 전달 필요
+            parts.add(Map.of("inline_data", Map.of(
+                "mime_type", mimeType,
+                "data", Base64.getEncoder().encodeToString(audioBytes)
+            )));
+        }
+        return callGemini(parts);
+    }
+
+    /**
+     * 증상 + 시스템 스냅샷 → 가설 A/B/C 생성 (SW 진단 전용)
+     */
+    public String generateHypotheses(String symptom, String systemSnapshotJson, String base64Image) {
+        List<Map<String, Object>> parts = new ArrayList<>();
+        parts.add(Map.of("text", buildHypothesisPrompt(symptom, systemSnapshotJson)));
+
+        if (base64Image != null && !base64Image.isBlank()) {
+            parts.add(Map.of("inline_data", Map.of(
+                "mime_type", "image/jpeg",
+                "data", base64Image
+            )));
+        }
+        return callGemini(parts);
+    }
+
+    // ── Private helpers ────────────────────────────────────────────────────────
+
+    private String callGemini(List<Map<String, Object>> parts) {
+        Map<String, Object> requestBody = Map.of(
+            "contents", List.of(Map.of("parts", parts))
+        );
+        String url = GEMINI_BASE_URL + model + ":generateContent?key=" + apiKey;
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> response = restTemplate.postForObject(url, requestBody, Map.class);
+        return extractText(response);
+    }
+
+    /**
+     * Gemini 응답에서 텍스트 추출 — 모든 null/빈값 방어 처리
+     */
+    @SuppressWarnings("unchecked")
+    private String extractText(Map<String, Object> response) {
+        if (response == null)
+            throw new DiagnosisException("Gemini 응답이 없어요. API 키를 확인해주세요.");
+
+        // 오류 응답 확인
+        if (response.containsKey("error")) {
+            Map<String, Object> error = (Map<String, Object>) response.get("error");
+            throw new DiagnosisException("Gemini 오류: " + error.get("message"));
+        }
+
+        var candidates = (List<Map<String, Object>>) response.get("candidates");
+        if (candidates == null || candidates.isEmpty())
+            throw new DiagnosisException("Gemini 응답에 candidates가 없어요.");
+
+        var content = (Map<String, Object>) candidates.get(0).get("content");
+        if (content == null)
+            throw new DiagnosisException("Gemini 응답에 content가 없어요.");
+
+        var parts = (List<Map<String, Object>>) content.get("parts");
+        if (parts == null || parts.isEmpty())
+            throw new DiagnosisException("Gemini 응답에 parts가 없어요.");
+
+        Object text = parts.get(0).get("text");
+        if (text == null)
+            throw new DiagnosisException("Gemini 응답 텍스트가 비어 있어요.");
+
+        return text.toString();
+    }
+
+    private String buildHardwareSystemPrompt(String symptom, String biosType) {
+        String biosInfo = biosType != null ? "\nBIOS 제조사: " + biosType : "";
+        return """
+            당신은 '옆집 컴공생' AI입니다. PC 하드웨어 문제를 진단해주세요.
+            말투: 친근한 공대생처럼, 존댓말 사용.
+            전문 용어는 괄호로 설명해주세요.
+
+            증상: %s%s
+
+            다음 JSON 형식으로만 응답해주세요 (코드 블록 없이):
+            {"cause":"[부품명]에 문제 있어요. 원인: ...","solution":"1. 첫 번째 조치\\n2. 두 번째 조치","confidence":0.85,"parts":["RAM"]}
+
+            주의:
+            - confidence는 0.0~1.0 숫자
+            - parts는 ["RAM","GPU","MAINBOARD","PSU","STORAGE","CPU","COOLING"] 중 해당 항목
+            - 수리기사 권장 조건: 납땜/전문장비/안전위험/confidence < 0.6
+            """.formatted(symptom, biosInfo);
+    }
+
+    private String buildHypothesisPrompt(String symptom, String systemSnapshotJson) {
+        String snapshotSection = systemSnapshotJson != null && !systemSnapshotJson.equals("null")
+            ? "\n\n시스템 정보:\n" + systemSnapshotJson
+            : "";
+        return """
+            당신은 '옆집 컴공생' AI입니다. 소프트웨어 문제를 진단하고 3가지 가설을 제시해주세요.
+            말투: 친근한 공대생처럼, 존댓말 사용.
+
+            증상: %s%s
+
+            다음 JSON 형식으로만 응답해주세요 (코드 블록 없이):
+            {
+              "diagnosisId": "UUID",
+              "hypotheses": [
+                {
+                  "id": "h1",
+                  "title": "가설 제목",
+                  "description": "상세 설명 (증상과 연관성)",
+                  "priority": "A",
+                  "confidence": 0.85,
+                  "status": "pending"
+                }
+              ],
+              "immediateAction": "지금 당장 해볼 수 있는 가장 쉬운 조치"
+            }
+
+            가설 우선순위 규칙:
+            - A: 직접 시도 가능, 위험도 낮음 (재시작, 드라이버 업데이트, 설정 변경)
+            - B: 중간 위험도 또는 시간 소요 (포맷, 하드웨어 교체)
+            - C: 전문 개입 필요 (납땜, 부품 교체, 데이터 복구)
+            반드시 A → B → C 순으로 정렬. confidence는 0.0~1.0.
+            """.formatted(symptom, snapshotSection);
+    }
+}
