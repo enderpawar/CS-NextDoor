@@ -81,8 +81,7 @@ public class DiagnosisController {
 
     @ExceptionHandler(DiagnosisException.class)
     public ResponseEntity<Map<String, String>> handleDiagnosisException(DiagnosisException e) {
-        int status = e.getMessage().contains("한도") ? 429 : 500;
-        return ResponseEntity.status(status).body(Map.of("error", e.getMessage()));
+        return ResponseEntity.status(e.getHttpStatus()).body(Map.of("error", e.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

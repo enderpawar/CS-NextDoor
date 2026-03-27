@@ -56,9 +56,12 @@ public class GeminiService {
         parts.add(Map.of("text", buildHardwareSystemPrompt(symptom, biosType)));
         parts.add(Map.of("inline_data", Map.of("mime_type", "image/jpeg", "data", base64Image)));
 
-        if (audioBytes != null && audioMimeType != null) {
+        if (audioBytes != null) {
+            String mimeType = (audioMimeType != null && !audioMimeType.isBlank())
+                ? audioMimeType
+                : "audio/webm";  // iOS mp4는 클라이언트가 명시 전달 필요
             parts.add(Map.of("inline_data", Map.of(
-                "mime_type", audioMimeType,
+                "mime_type", mimeType,
                 "data", Base64.getEncoder().encodeToString(audioBytes)
             )));
         }

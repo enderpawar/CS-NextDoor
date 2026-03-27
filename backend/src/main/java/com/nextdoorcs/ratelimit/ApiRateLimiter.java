@@ -25,7 +25,7 @@ public class ApiRateLimiter {
                             .incrementAndGet();
         if (count > dailyLimit) {
             throw new DiagnosisException(
-                "일일 진단 한도(" + dailyLimit + "회)를 초과했어요. 내일 다시 시도해주세요."
+                "일일 진단 한도(" + dailyLimit + "회)를 초과했어요. 내일 다시 시도해주세요.", 429
             );
         }
     }
