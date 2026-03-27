@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from './App';
 
+// SystemDashboard는 useSystemInfo에 의존 → App 단위 테스트에서 분리
+vi.mock('./hooks/useSystemInfo', () => ({ useSystemInfo: () => null }));
+
 describe('App — 런타임 모드 배지', () => {
   beforeEach(() => {
     Object.defineProperty(window, 'electronAPI', {

@@ -111,7 +111,7 @@ nextdoor-cs/
 | **0** (인프라) | ✅ 완료 — 타입·디자인 토큰·빌드 설정·스타일 CSS 완비 |
 | **1** | ✅ 완료 — Gemini REST API 직접 호출, IP 기반 일일 쿼터, /hardware + /hypotheses 엔드포인트 검증 완료 |
 | **2** | ✅ 완료 — main.ts + preload.ts IPC 브리지, useRuntimeMode, App.tsx 클립보드 이미지 붙여넣기 완비 |
-| **3** | 🔲 미시작 |
+| **3** | ✅ 완료 — CPU 온도·사용률·메모리·GPU(한계 명시)·디스크 I/O 실시간 수집 + SystemDashboard 렌더링 |
 | **4** | 🔲 미시작 |
 | **5** | 🔲 미시작 |
 | **6** | 🔲 미시작 |

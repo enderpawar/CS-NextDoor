@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
-import { getSystemSnapshot } from './modules/systemMonitor';
+import { getSystemSnapshot, startMonitoring } from './modules/systemMonitor';
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -20,17 +20,9 @@ function createWindow(): void {
       : `file://${path.join(__dirname, '../dist/index.html')}`,
   );
 
-  // Phase 2: 2초마다 시스템 스냅샷 푸시 — Phase 3에서 CPU 온도 포함으로 확장
-  const timer = setInterval(async () => {
-    try {
-      const snapshot = await getSystemSnapshot();
-      win.webContents.send('system-update', snapshot);
-    } catch {
-      // 수집 실패 시 무시 — 다음 주기에 재시도
-    }
-  }, 2000);
-
-  win.on('closed', () => clearInterval(timer));
+  // Phase 3: CPU 온도 포함 전체 스냅샷 2초마다 푸시
+  const stopMonitoring = startMonitoring(win);
+  win.on('closed', stopMonitoring);
 }
 
 // Phase 2: 1회성 조회

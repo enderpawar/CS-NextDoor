@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useRuntimeMode } from './hooks/useRuntimeMode';
 import type { ClipboardImage } from './types';
+import SystemDashboard from './components/desktop/SystemDashboard';
 import './styles/tokens.css';
 import './styles/global.css';
 import './styles/animations.css';
@@ -81,12 +82,8 @@ export default function App() {
           )}
         </section>
 
-        {/* Phase 3~: SystemDashboard, HypothesisTracker 등 조건부 렌더링 */}
-        {mode === 'electron' && (
-          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            시스템 정보를 수집 중이에요...
-          </p>
-        )}
+        {/* Phase 3: Electron 전용 시스템 대시보드 */}
+        {mode === 'electron' && <SystemDashboard />}
       </main>
     </div>
   );
