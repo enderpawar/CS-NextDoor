@@ -113,7 +113,7 @@ nextdoor-cs/
 | **2** | ✅ 완료 — main.ts + preload.ts IPC 브리지, useRuntimeMode, App.tsx 클립보드 이미지 붙여넣기 완비 |
 | **3** | ✅ 완료 — CPU 온도·사용률·메모리·GPU(한계 명시)·디스크 I/O 실시간 수집 + SystemDashboard 렌더링 |
 | **4** | ✅ 완료 — processAnalyzer + eventLogReader 수집, ProcessList(CPU/메모리 정렬 토글) + EventLogViewer(에러/경고) 렌더링 |
-| **5** | 🔲 미시작 |
+| **5** | ✅ 완료 — HypothesisTracker(가설 A/B/C + 상태 관리) + 재현 모드(베이스라인/delta) + PatternSelector + DiagnosisConfidence + /software·/patterns 엔드포인트 |
 | **6** | 🔲 미시작 |
 | **7** | 🔲 미시작 |
 | **7-B** | 🔲 미시작 |

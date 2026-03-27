@@ -3,6 +3,10 @@ package com.nextdoorcs.controller;
 import com.nextdoorcs.dto.DiagnosisResponse;
 import com.nextdoorcs.dto.HypothesisRequest;
 import com.nextdoorcs.dto.HypothesisResponse;
+import com.nextdoorcs.dto.PatternsRequest;
+import com.nextdoorcs.dto.PatternsResponse;
+import com.nextdoorcs.dto.SoftwareDiagnosisRequest;
+import com.nextdoorcs.dto.SoftwareDiagnosisResponse;
 import com.nextdoorcs.exception.DiagnosisException;
 import com.nextdoorcs.ratelimit.ApiRateLimiter;
 import com.nextdoorcs.service.DiagnosisService;
@@ -62,6 +66,36 @@ public class DiagnosisController {
         rateLimiter.checkLimit(getClientIp(request));
 
         HypothesisResponse response = diagnosisService.generateHypotheses(req);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * POST /api/diagnosis/software
+     * Electron → SW 가설 확정 (재현 성공 후 baseline + delta 전송)
+     */
+    @PostMapping("/software")
+    public ResponseEntity<?> confirmSoftwareDiagnosis(
+            @RequestBody SoftwareDiagnosisRequest req,
+            HttpServletRequest request) {
+
+        rateLimiter.checkLimit(getClientIp(request));
+
+        SoftwareDiagnosisResponse response = diagnosisService.confirmSoftwareDiagnosis(req);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * POST /api/diagnosis/patterns
+     * Electron → 이벤트 로그 기반 패턴 제안 (재현 실패 시 호출)
+     */
+    @PostMapping("/patterns")
+    public ResponseEntity<?> suggestPatterns(
+            @RequestBody PatternsRequest req,
+            HttpServletRequest request) {
+
+        rateLimiter.checkLimit(getClientIp(request));
+
+        PatternsResponse response = diagnosisService.suggestPatterns(req);
         return ResponseEntity.ok(response);
     }
 
