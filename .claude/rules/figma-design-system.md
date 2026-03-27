@@ -14,9 +14,11 @@
 | 서브 섹션 배경 | `--color-bg-card-sub` | `#f2f4f4` |
 | 브랜드 (CTA, 활성) | `--color-brand` | `#4355b9` |
 | 브랜드 틴트 (뱃지 배경) | `--color-brand-light` | `#dee0ff` |
+| 앱 헤더 타이틀 | `--color-heading` | `#1e293b` |
 | 주 텍스트 | `--color-text-primary` | `#2d3335` |
 | 부 텍스트 | `--color-text-secondary` | `#5a6061` |
 | 비활성/placeholder | `--color-text-hint` | `#adb3b4` |
+| 세션 만료·이상 패턴 강조 | `--color-error-dark` | `#9e3f4e` |
 
 - **직접 색상값 하드코딩 금지** — 반드시 CSS 변수 사용
 - 상태 색상: `--color-success` / `--color-warning` / `--color-error` 사용
@@ -68,7 +70,7 @@
             └─ 소형 아이콘 배경(#ffffff, radius-sm)
 ```
 
-- 카드 radius: `--radius-md`(8px) 소형 / `--radius-lg`(12px) 일반 / `--radius-xl`(16px) 대형 섹션
+- 카드 radius: `--radius-md`(8px) 소형 / `--radius-lg`(12px) 일반 / `--radius-xl`(16px) 대형 섹션 / `--radius-2xl`(32px) QR 카드
 - 카드 shadow: `--shadow-card` (`0 1px 2px rgba(0,0,0,0.05)`) — 과도한 그림자 금지
 
 ---
@@ -123,6 +125,38 @@ stale 경고: `.animate-shake`
 - PWA 배경의 회로/카메라 일러스트 이미지 → 배경은 단색 `#f9f9f9`만 사용
 - AI 더미 텍스트 (AES-256-GCM, Workstation ID 등) → 실제 앱 데이터로만 표시
 - 영문 전문용어 UI 레이블 → 한국어 친근체 사용 ("진단 시작", "연결됨" 등)
+
+---
+
+## 피그마 전체 화면 목록 (node-id 기준)
+
+| node-id | 화면명 | 환경 | 해당 Phase |
+|---|---|---|---|
+| `1:2` | 세션 홈 (PWA 메인) | PWA | Phase 6 |
+| `1:87` | 촬영 가이드 | PWA | Phase 7 |
+| `1:241` | 실시간 스캔 (카메라 뷰파인더 + AR 오버레이 + 오디오 파형) | PWA | Phase 7/8 |
+| `1:329` | QR 세션 연결 (데스크톱 사이드바 + QR 카드 + 만료 타이머) | Electron | Phase 11 |
+| `1:454` | 재현 모드 (라인 그래프 + Abnormal 패턴 사이드바) | Electron | Phase 5 |
+
+### 화면별 핵심 패턴 요약
+
+**실시간 스캔 (1:241)**
+- 카메라 뷰 위 반투명 카드: `backdrop-blur-[8px] bg-[rgba(255,255,255,0.9)]`
+- 오디오 파형 바: 활성 `--color-brand` / 비활성 `--color-brand-light`
+- 스캐닝 레티클: 브랜드 컬러 코너 브래킷 + 수평 스캐닝 라인
+
+**QR 세션 연결 (1:329)**
+- 데스크톱 사이드바 256px (`.sidebar` 클래스)
+- QR 컨테이너 `--radius-2xl`(32px) + `shadow-[0px_20px_60px...]`
+- 세션 만료 타이머: `--color-error-dark`(#9e3f4e) 배경·텍스트
+- 수동 입력 코드: Liberation Mono 30px + `tracking-[12px]`
+
+**재현 모드 (1:454)**
+- 브레드크럼 헤더: `SYSTEM STATUS / 재현 모드` 형식
+- 라인 그래프 + 그리드 라인: `--color-border`(#ebeeef)
+- Abnormal 패턴 카드: `border-l-4` 좌측 컬러 액센트
+  - Critical: `--color-error-dark` / Warning: `#535f78` / Tonal: `--color-border`
+- Pulse Meter 카드: `--color-bg-card-sub` 배경 + `--confidence-bar` 패턴
 
 ---
 

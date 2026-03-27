@@ -230,6 +230,7 @@ ul, ol {
   font-size: var(--text-base);
   font-weight: var(--weight-semibold);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-btn);
   transition: opacity var(--transition-fast), transform var(--transition-fast);
   width: 100%;
 }
