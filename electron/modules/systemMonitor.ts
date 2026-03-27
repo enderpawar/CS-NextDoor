@@ -45,7 +45,12 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
     si.cpuTemperature().catch(() => null),
   ]);
 
-  const gpuController = graphics.controllers[0] ?? null;
+  // VRAM이 가장 큰 카드 선택 — 내장 GPU(컨트롤러[0])가 아닌 외장 GPU를 우선
+  const gpuController = graphics.controllers.length > 0
+    ? graphics.controllers.reduce((best, cur) =>
+        (cur.vram ?? 0) > (best.vram ?? 0) ? cur : best
+      )
+    : null;
 
   return {
     cpu: {
