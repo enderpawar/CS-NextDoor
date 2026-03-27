@@ -70,25 +70,8 @@ export async function getEventLogs(maxEvents = 30): Promise<EventLog[]> {
     );
     if (!stdout.trim()) return [];
     return normalizeJson(stdout.trim()).map(toEventLog);
-  } catch {
-    // 권한 부족 또는 비-Windows 환경 — 다음 호출에 재시도 가능
-    return [];
-  }
-}
-
-// Phase 4: Application 이벤트 로그 (앱 크래시, 드라이버 오류)
-export async function getAppLogs(maxEvents = 20): Promise<EventLog[]> {
-  if (process.platform !== 'win32') return [];
-
-  try {
-    const ps = `Get-WinEvent -LogName Application -MaxEvents ${maxEvents} | Where-Object { $_.Level -le 2 } | Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, Message | ConvertTo-Json`;
-    const { stdout } = await execAsync(
-      `powershell -ExecutionPolicy Bypass -Command "${ps}"`,
-      { encoding: 'utf8' },
-    );
-    if (!stdout.trim()) return [];
-    return normalizeJson(stdout.trim()).map(toEventLog);
-  } catch {
+  } catch (e) {
+    console.error('[eventLogReader] getEventLogs 실패:', e);
     return [];
   }
 }
