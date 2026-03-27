@@ -49,7 +49,7 @@
           {
             "type": "command",
             "shell": "powershell",
-            "command": "$data = $input | ConvertFrom-Json; $f = $data.tool_input.file_path; if ($f -match '\\.java$') { if (-not (Test-Path 'backend')) { Write-Host '⚠️ backend/ 없음 — Phase 0 스캐폴딩 먼저 진행'; exit 0 }; Write-Host \"=== Backend Test (triggered by: $f) ===\"; Push-Location backend; .\\.mvnw test -q 2>&1 | Select-Object -Last 40; $ec = $LASTEXITCODE; Pop-Location; if ($ec -ne 0) { exit 2 } } elseif ($f -match '\\.(jsx?|tsx?)$') { Write-Host \"=== Frontend Test (triggered by: $f) ===\"; npm test --watchAll=false --passWithNoTests 2>&1 | Select-Object -Last 40; if ($LASTEXITCODE -ne 0) { exit 2 } }",
+            "command": "$data = $input | ConvertFrom-Json; $f = $data.tool_input.file_path; if ($f -match '\\.java$') { $idx = $f.IndexOf('\\backend\\'); if ($idx -ge 0) { $backendPath = $f.Substring(0, $idx) + '\\backend' } elseif (Test-Path 'backend') { $backendPath = (Resolve-Path 'backend').Path } else { Write-Host '⚠️ backend/ 없음 — Phase 0 스캐폴딩 먼저 진행'; exit 0 }; Write-Host \"=== Backend Test (triggered by: $f) ===\"; Push-Location $backendPath; .\\mvnw.cmd test -q 2>&1 | Select-Object -Last 40; $ec = $LASTEXITCODE; Pop-Location; if ($ec -ne 0) { exit 2 } } elseif ($f -match '\\.(jsx?|tsx?)$') { Write-Host \"=== Frontend Test (triggered by: $f) ===\"; npm test --watchAll=false --passWithNoTests 2>&1 | Select-Object -Last 40; if ($LASTEXITCODE -ne 0) { exit 2 } }",
             "asyncRewake": true,
             "timeout": 300,
             "statusMessage": "테스트 실행 중... (실패 시 자동으로 알려드릴게요)"
@@ -75,7 +75,7 @@
           {
             "type": "command",
             "shell": "powershell",
-            "command": "Write-Output '{\"systemMessage\": \"✅ 작업 완료. 전체 테스트 확인: [백엔드] cd backend && .\\mvnw test  |  [프론트] npm test --watchAll=false\"}'",
+            "command": "Write-Output '{\"systemMessage\": \"✅ 작업 완료. 전체 테스트 확인: [백엔드] cd backend && .\\mvnw.cmd test  |  [프론트] npm test --watchAll=false\"}'",
             "timeout": 5
           }
         ]
