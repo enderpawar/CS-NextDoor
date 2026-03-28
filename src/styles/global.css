@@ -340,34 +340,52 @@ ul, ol {
   left: 0;
   bottom: 0;
   width: var(--layout-sidebar-width);
-  background: var(--color-bg-base);
-  border-right: 1px solid var(--color-border-subtle);
+  background: var(--color-sidebar-bg);
+  border-right: 1px solid var(--color-sidebar-border);
   display: flex;
   flex-direction: column;
   padding: var(--space-8) 0;
   z-index: 100;
 }
 
+.sidebar-nav-group-label {
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-sidebar-text);
+  opacity: 0.5;
+  padding: var(--space-3) var(--space-5) var(--space-1);
+}
+
 .sidebar-nav-item {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-8);
-  color: var(--color-text-nav);
+  padding: var(--space-3) var(--space-4);
+  margin: 1px var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-sidebar-text);
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
   transition: color var(--transition-fast), background var(--transition-fast);
 }
 
 .sidebar-nav-item:hover {
-  background: rgba(67, 85, 185, 0.04);
-  color: var(--color-text-primary);
+  background: var(--color-sidebar-hover-bg);
+  color: var(--color-sidebar-text-hover);
 }
 
 .sidebar-nav-item.active {
-  background: var(--color-bg-card);
-  color: var(--color-brand-active);
-  border-right: 2px solid var(--color-brand-active);
+  background: var(--color-sidebar-active-bg);
+  color: var(--color-sidebar-text-active);
+  font-weight: var(--weight-semibold);
+}
+
+.sidebar-nav-item.locked {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
 }
 
 /* ── 신뢰도 표시 (confidence < 0.6 → 경고) ──────────────────────────────── */
@@ -391,6 +409,134 @@ ul, ol {
   background: var(--color-error);
   box-shadow: 0px 0px 8px 0px rgba(239, 68, 68, 0.6);
 }
+
+/* ── Electron 전용 레이아웃 오버라이드 ──────────────────────────────────── */
+
+/* Electron: 헤더를 사이드바 오른쪽에서 시작 + frosted glass */
+.mode-electron .top-app-bar {
+  left: var(--layout-sidebar-width);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+/* Electron: 콘텐츠를 사이드바 + padding 오른쪽으로 밀기 */
+.mode-electron .app-content {
+  padding-left: calc(var(--layout-sidebar-width) + var(--layout-desktop-padding));
+  padding-right: var(--layout-desktop-padding);
+  padding-bottom: var(--layout-desktop-padding);
+  max-width: calc(var(--layout-content-max) + var(--layout-sidebar-width));
+}
+
+/* ── 클립보드 이미지 프리뷰 ─────────────────────────────────────────────── */
+
+.clipboard-preview {
+  position: relative;
+  display: inline-flex;
+  margin-top: var(--space-3);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border);
+}
+
+.clipboard-thumbnail {
+  display: block;
+  max-height: 120px;
+  max-width: 320px;
+  width: auto;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+}
+
+.clipboard-remove {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast);
+}
+
+.clipboard-remove:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+/* ── Diagnostics Landing — 퀵 액션 카드 ─────────────────────────────────── */
+
+.quick-action-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  width: 100%;
+}
+
+.quick-action-card:hover {
+  border-color: var(--color-border-active);
+  box-shadow: var(--shadow-card-active);
+  transform: translateY(-1px);
+}
+
+.symptom-search-wrap {
+  position: relative;
+  max-width: var(--layout-input-max);
+  margin-bottom: var(--space-8);
+}
+
+.symptom-search {
+  width: 100%;
+  padding: 15px 52px 15px 20px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  color: var(--color-text-primary);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  resize: none;
+  min-height: 54px;
+}
+
+.symptom-search:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px rgba(67, 85, 185, 0.08);
+}
+
+.symptom-search-btn {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--color-brand);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--transition-fast);
+}
+
+.symptom-search-btn:hover { opacity: 0.88; }
+.symptom-search-btn:disabled { background: var(--color-bg-card-sub); cursor: not-allowed; }
 
 /* ── 유틸리티 ────────────────────────────────────────────────────────────── */
 

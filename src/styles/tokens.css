@@ -133,4 +133,14 @@
   --transition-fast:   150ms ease;
   --transition-normal: 250ms ease;
   --transition-slow:   400ms ease;
+
+  /* ── 사이드바 다크 테마 ──────────────────────────────────────────────── */
+  --color-sidebar-bg:           #12172a;
+  --color-sidebar-border:       rgba(255, 255, 255, 0.07);
+  --color-sidebar-text:         #7b8799;
+  --color-sidebar-text-hover:   #c1c9d6;
+  --color-sidebar-text-active:  #e8ecf4;
+  --color-sidebar-active-bg:    rgba(67, 85, 185, 0.22);
+  --color-sidebar-hover-bg:     rgba(255, 255, 255, 0.05);
+  --color-sidebar-divider:      rgba(255, 255, 255, 0.08);
 }

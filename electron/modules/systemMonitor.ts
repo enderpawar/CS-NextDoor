@@ -23,8 +23,8 @@ export interface GpuInfo {
 }
 
 export interface DiskInfo {
-  read: number;   // bytes/s
-  write: number;  // bytes/s
+  read: number;   // IOPS (초당 I/O 작업 횟수) — bytes/s 아님. Windows에서 대부분 null.
+  write: number;  // IOPS
 }
 
 export interface SystemSnapshot {
@@ -54,11 +54,14 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
 
   return {
     cpu: {
-      usage: Math.round(cpu.currentLoad),
+      // 소수점 1자리 유지 → 작업 관리자와 동일한 수준의 정밀도
+      usage: Math.round(cpu.currentLoad * 10) / 10,
       temperature: temp?.main ?? null, // null 전파 — UI에서 "측정 불가" 처리
     },
     memory: {
-      used: mem.used,
+      // mem.active = 프로세스가 실제 점유한 메모리 (캐시/스탠바이 제외)
+      // 작업 관리자 "사용 중" 기준과 일치. mem.used(total-free)는 캐시 포함으로 과대 표시됨.
+      used: mem.active,
       total: mem.total,
     },
     gpu: gpuController
@@ -69,6 +72,10 @@ export async function getSystemSnapshot(): Promise<SystemSnapshot> {
         }
       : null,
     disk: disksIO
+      // rIO_sec / wIO_sec = 초당 I/O 작업 횟수 (IOPS). bytes/s 가 아님.
+      // systeminformation 5.x DisksIoData에 bytes/s 필드 없음.
+      // Windows에서 disksIO()는 관리자 권한 없이 null 반환 → disk: null 으로 처리됨.
+      // 실제 MB/s가 필요하다면 PowerShell Get-Counter 로 대체 필요 (Phase 후속 개선).
       ? { read: disksIO.rIO_sec ?? 0, write: disksIO.wIO_sec ?? 0 }
       : null,
   };
