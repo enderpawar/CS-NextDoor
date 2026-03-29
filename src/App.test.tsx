@@ -24,7 +24,7 @@ describe('App — 런타임 모드 배지', () => {
     expect(screen.getByText(/SW 데이터 없이 분석/)).toBeInTheDocument();
   });
 
-  it('Electron 모드에서 System Status 헤더 표시', () => {
+  it('Electron 모드에서 PC 시스템 진단 UI 표시', () => {
     Object.defineProperty(window, 'electronAPI', {
       value: {
         getSystemInfo: vi.fn(),
@@ -35,7 +35,7 @@ describe('App — 런타임 모드 배지', () => {
       configurable: true,
     });
     render(<App />);
-    expect(screen.getByText('System Status')).toBeInTheDocument();
+    expect(screen.getByText('PC 시스템 진단')).toBeInTheDocument();
   });
 });
 

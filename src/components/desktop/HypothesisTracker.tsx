@@ -185,6 +185,11 @@ export default function HypothesisTracker({ response, symptom, eventLogs = [], o
     hypotheses.length > 0 &&
     hypotheses.every(h => h.status === 'resolved' || h.status === 'failed');
 
+  // Solution 5: 가설 순차적 공개 — A 시도 전까지 B/C 흐리게
+  const anyHypothesisDone = hypotheses.some(
+    h => h.status === 'resolved' || h.status === 'failed' || h.status === 'trying',
+  );
+
   // ── 렌더링 ─────────────────────────────────────────────────────────────────
 
   if (trackerPhase === 'sw-loading' || trackerPhase === 'pattern-loading') {
@@ -250,16 +255,30 @@ export default function HypothesisTracker({ response, symptom, eventLogs = [], o
       <p className="text-label" style={{ marginBottom: 'var(--space-3)' }}>가설 목록</p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        {hypotheses.map((h) => (
-          <HypothesisCard
-            key={h.id}
-            hypothesis={h}
-            isActive={activeHypothesisId === h.id}
-            onTry={handleTry}
-            onResolve={(id) => handleStatusChange(id, 'resolved')}
-            onFail={(id) => handleStatusChange(id, 'failed')}
-          />
-        ))}
+        {hypotheses.map((h) => {
+          const isLead = h.priority === 'A';
+          const isDimmed = !anyHypothesisDone && !isLead;
+          return (
+            <div
+              key={h.id}
+              className={`nd-hypothesis-wrapper ${isDimmed ? 'nd-hypothesis-dimmed' : 'nd-hypothesis-active'}`}
+            >
+              {isLead && !anyHypothesisDone && (
+                <div className="nd-hypothesis-lead-badge">먼저 시도하세요</div>
+              )}
+              {!isLead && !anyHypothesisDone && (
+                <div className="nd-hypothesis-wait-badge">A 시도 후 확인하세요</div>
+              )}
+              <HypothesisCard
+                hypothesis={h}
+                isActive={activeHypothesisId === h.id}
+                onTry={handleTry}
+                onResolve={(id) => handleStatusChange(id, 'resolved')}
+                onFail={(id) => handleStatusChange(id, 'failed')}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {apiError && (

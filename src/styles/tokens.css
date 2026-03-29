@@ -1,86 +1,106 @@
-/* ── Design Tokens — 옆집 컴공생 ────────────────────────────────────────────
- * 출처: Figma "Untitled" (GlSyRrVWR7Q8R8mGeUwoxX)
- * 색상/간격/타이포/쉐도우 전부 여기서만 관리.
- * 컴포넌트 CSS는 이 변수를 참조할 것. 하드코딩 금지.
+/* ── Design Tokens — 옆집 컴공생 (Clean Neutral) ─────────────────────────
+ * 클린 뉴트럴 + 인디고 액센트 + 라이트 잉크 오프셋 그림자
+ * 레퍼런스 톤: Notion · GitHub · Stripe
  * ──────────────────────────────────────────────────────────────────────── */
 
 :root {
 
-  /* ── 색상 — 배경 계층 ────────────────────────────────────────────────── */
-  --color-bg-base:       #f9f9f9;   /* 앱 전체 배경 */
-  --color-bg-card:       #ffffff;   /* 카드 배경 */
-  --color-bg-card-sub:   #f2f4f4;   /* 서브 카드 / 섹션 배경 */
-  --color-bg-overlay:    rgba(255, 255, 255, 0.8); /* frosted glass 탭바 */
+  /* ── 배경 계층 — 소프트 블루 글래스 ───────────────────────────────── */
+  --color-bg-hero:       #eef2ff;
+  --color-bg-page:       #f8f9fd;
+  --color-bg-base:       #f8f9fd;
+  --color-bg-card:       rgba(255, 255, 255, 0.72);
+  --color-bg-card-sub:   #eef2fb;
+  --color-bg-overlay:    rgba(255, 255, 255, 0.54);
 
-  /* ── 색상 — 브랜드 ──────────────────────────────────────────────────── */
-  --color-brand:         #4355b9;   /* CTA 버튼, 활성 상태, glow 요소 */
-  --color-brand-light:   #dee0ff;   /* 뱃지 배경, 아이콘 배경 틴트 */
-  --color-brand-track:   #ccd2ff;   /* 프로그레스 바 트랙 */
-  --color-brand-active:  #4f46e5;   /* 네비 활성 텍스트/아이콘 (약간 다른 인디고) */
+  /* ── 잉크 (윤곽선 · 라인아트 · 강조 텍스트) ──────────────────────── */
+  --color-ink:            #191c1f;
+  --color-ink-ghost:      rgba(25, 28, 31, 0.04);
+  --color-ink-soft:       rgba(25, 28, 31, 0.06);
+  --color-ink-muted:      rgba(67, 70, 84, 0.14);
+  --color-ink-medium:     rgba(67, 70, 84, 0.66);
+  --color-ink-strong:     rgba(25, 28, 31, 0.78);
+  --color-border-ink:     rgba(116, 118, 133, 0.22);
 
-  /* ── 색상 — 텍스트 ──────────────────────────────────────────────────── */
-  --color-heading:       #1e293b;   /* 앱 헤더 타이틀 (text-primary보다 진한 네이비) */
-  --color-text-primary:  #2d3335;   /* 제목, 강조 텍스트 */
-  --color-text-secondary:#5a6061;   /* 본문, 레이블 */
-  --color-text-hint:     #adb3b4;   /* placeholder, 비활성 */
-  --color-text-nav:      #64748b;   /* 사이드바 비활성 링크 */
-  --color-text-nav-sub:  #94a3b8;   /* 하단 탭 비활성 */
-  --color-text-brand:    #4355b9;   /* 브랜드 컬러 텍스트 */
-  --color-text-inverse:  #f9f9f9;   /* 어두운 배경 위 텍스트 */
+  /* ── 브랜드 — 인디고 ─────────────────────────────────────────────── */
+  --color-brand:         #5a81fa;
+  --color-brand-ghost:   rgba(90, 129, 250, 0.10);
+  --color-brand-light:   rgba(90, 129, 250, 0.14);
+  --color-brand-subtle:  rgba(90, 129, 250, 0.16);
+  --color-brand-medium:  rgba(90, 129, 250, 0.20);
+  --color-brand-track:   rgba(90, 129, 250, 0.24);
+  --color-brand-border:  rgba(90, 129, 250, 0.22);
+  --color-brand-ring:    rgba(90, 129, 250, 0.18);
+  --color-brand-focus:   rgba(90, 129, 250, 0.30);
+  --color-brand-muted:   rgba(68, 108, 228, 0.76);
+  --color-brand-active:  #446ce4;
 
-  /* ── 색상 — 경계선 ──────────────────────────────────────────────────── */
-  --color-border:        #ebeeef;   /* 카드 테두리 */
-  --color-border-subtle: #f1f5f9;   /* 헤더/사이드바 구분선 */
-  --color-border-active: rgba(67, 85, 185, 0.1); /* 활성 카드 테두리 */
+  /* ── 텍스트 ──────────────────────────────────────────────────────── */
+  --color-heading:        #191c1f;
+  --color-text-primary:   #1f2431;
+  --color-text-secondary: #5d6274;
+  --color-text-hint:      #8e95aa;
+  --color-text-inverse:   #f9fafb;
+  --color-text-nav:       rgba(67, 70, 84, 0.78);
+  --color-text-nav-sub:   rgba(67, 70, 84, 0.56);
+  --color-text-brand:     #2c3d8f;
 
-  /* ── 색상 — 상태 ────────────────────────────────────────────────────── */
-  --color-success:       #22c55e;
-  --color-warning:       #f59e0b;
-  --color-error:         #ef4444;
-  --color-error-dark:    #9e3f4e;   /* 세션 만료·이상 패턴 강조 (어두운 로즈) */
-  --color-info:          #4355b9;
+  /* ── 경계선 ──────────────────────────────────────────────────────── */
+  --color-border:        rgba(196, 197, 214, 0.72);
+  --color-border-subtle: rgba(255, 255, 255, 0.58);
+  --color-border-ghost:  rgba(196, 197, 214, 0.46);
+  --color-border-active: rgba(90, 129, 250, 0.28);
+  --color-border-hero:   rgba(255, 255, 255, 0.48);
+  --color-divider:       rgba(196, 197, 214, 0.56);
 
-  /* ── 색상 — 토스트 ──────────────────────────────────────────────────── */
-  --color-toast-bg:      #2d3335;   /* 다크 토스트 배경 */
-  --color-toast-text:    #f9f9f9;
+  /* ── 상태 색상 ─────────────────────────────────────────────────── */
+  --color-success:    #22c55e;
+  --color-warning:    #f59e0b;
+  --color-error:      #ef4444;
+  --color-error-dark: #b91c1c;
+  --color-info:       #3b82f6;
 
-  /* ── 타이포그래피 — 폰트 패밀리 ────────────────────────────────────── */
-  --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono:  'Liberation Mono', 'Cascadia Code', 'Consolas', monospace;
+  /* ── 토스트 ──────────────────────────────────────────────────────── */
+  --color-toast-bg:   #2e3134;
+  --color-toast-text: #f9fafb;
 
-  /* ── 타이포그래피 — 크기 스케일 ────────────────────────────────────── */
-  --text-hero:   56px;   /* 히어로 타이틀 */
-  --text-h1:     30px;   /* 섹션 주 제목 */
-  --text-h2:     24px;   /* 카드 제목 */
-  --text-h3:     18px;   /* 서브 제목 */
-  --text-base:   14px;   /* 본문 */
-  --text-sm:     12px;   /* 소문자 설명 */
-  --text-xs:     11px;   /* UPPERCASE 레이블 */
-  --text-mono:   10px;   /* 모노 뱃지 (PASSED / QUEUED) */
-  --text-stat:   36px;   /* 대형 수치 */
+  /* ── 타이포그래피 — 폰트 패밀리 ──────────────────────────────────── */
+  --font-sans:    'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Liberation Mono', monospace;
 
-  /* ── 타이포그래피 — 굵기 ────────────────────────────────────────────── */
-  /* 피그마 원본 대비 Thin→Light, Light→Regular 한 단계씩 올려 가독성 확보 */
-  --weight-black:     900;
-  --weight-bold:      700;
-  --weight-semibold:  600;
-  --weight-medium:    500;
-  --weight-regular:   400;   /* 본문 기본 (피그마 Light → Regular 상향) */
-  --weight-light:     300;   /* 히어로/대형 제목 (피그마 Thin → Light 상향) */
+  /* ── 타이포그래피 — 크기 스케일 ──────────────────────────────────── */
+  --text-hero:  56px;
+  --text-h1:    34px;
+  --text-h2:    24px;
+  --text-h3:    18px;
+  --text-base:  15px;
+  --text-sm:    13px;
+  --text-xs:    11px;
+  --text-mono:  10px;
+  --text-stat:  42px;
 
-  /* ── 타이포그래피 — 자간 ────────────────────────────────────────────── */
-  --tracking-hero:   -0.025em;  /* 대형 제목 */
-  --tracking-tight:  -0.015em;  /* H2/H3 */
-  --tracking-normal:  0;
-  --tracking-wide:    0.05em;   /* 섹션 레이블 UPPERCASE */
-  --tracking-wider:   0.1em;    /* 모노 뱃지 */
+  /* ── 타이포그래피 — 굵기 ──────────────────────────────────────── */
+  --weight-black:    900;
+  --weight-bold:     700;
+  --weight-semibold: 600;
+  --weight-medium:   500;
+  --weight-regular:  400;
+  --weight-light:    300;
 
-  /* ── 타이포그래피 — 줄 높이 ────────────────────────────────────────── */
-  --leading-tight:  1.25;
-  --leading-normal: 1.5;
-  --leading-loose:  1.625;
+  /* ── 타이포그래피 — 자간 ──────────────────────────────────────── */
+  --tracking-hero:   -0.04em;
+  --tracking-tight:  -0.02em;
+  --tracking-normal:  0em;
+  --tracking-wide:    0.06em;
+  --tracking-wider:   0.10em;
 
-  /* ── 간격 ───────────────────────────────────────────────────────────── */
+  /* ── 타이포그래피 — 줄 높이 ────────────────────────────────────── */
+  --leading-tight:  1.12;
+  --leading-normal: 1.55;
+  --leading-loose:  1.7;
+
+  /* ── 간격 ─────────────────────────────────────────────────────── */
   --space-1:   4px;
   --space-2:   8px;
   --space-3:   12px;
@@ -94,53 +114,66 @@
   --space-24:  96px;
   --space-32: 128px;
 
-  /* ── 레이아웃 ───────────────────────────────────────────────────────── */
+  /* ── 레이아웃 ─────────────────────────────────────────────────── */
   --layout-mobile-width:    390px;
   --layout-mobile-padding:  24px;
-  --layout-sidebar-width:   256px;
-  --layout-content-max:     1280px;
-  --layout-desktop-padding: 48px;
-  --layout-input-max:       672px;
+  --layout-sidebar-width:   0px;
+  --layout-content-max:     1440px;
+  --layout-desktop-padding: 0px;
+  --layout-input-max:       720px;
 
-  /* ── 네비게이션 ─────────────────────────────────────────────────────── */
-  --nav-top-height:    64px;
-  --nav-bottom-height: 64px;  /* PWA 하단 탭바 */
+  /* ── 네비게이션 ───────────────────────────────────────────────── */
+  --nav-top-height:    62px;
+  --nav-bottom-height: 70px;
 
-  /* ── 테두리 반경 ────────────────────────────────────────────────────── */
-  --radius-sm:   4px;    /* 아이콘 배경 */
-  --radius-md:   8px;    /* 소형 카드, 버튼 */
-  --radius-lg:   12px;   /* 일반 카드 */
-  --radius-xl:   16px;   /* 대형 섹션 */
-  --radius-2xl:  32px;   /* QR 카드 등 최대 라운드 */
-  --radius-full: 9999px; /* 알약형, 점 */
+  /* ── 테두리 반경 ──────────────────────────────────────────────── */
+  --radius-sm:   8px;
+  --radius-md:   14px;
+  --radius-lg:   22px;
+  --radius-xl:   28px;
+  --radius-2xl:  36px;
+  --radius-full: 9999px;
 
-  /* ── 그림자 ─────────────────────────────────────────────────────────── */
-  --shadow-card:        0px 1px 2px 0px rgba(0, 0, 0, 0.05);
-  --shadow-card-active: 0px 0px 0px 1px rgba(67, 85, 185, 0.1),
-                        0px 1px 2px 0px rgba(0, 0, 0, 0.05); /* 선택된 카드 — 브랜드 테두리 */
-  --shadow-btn:         0px 10px 15px -3px rgba(67, 85, 185, 0.2),
-                        0px 4px 6px -4px rgba(67, 85, 185, 0.2); /* CTA 버튼 블루 glow */
-  --shadow-modal:       0px 20px 25px -5px rgba(0, 0, 0, 0.10),
-                        0px 8px 10px -6px rgba(0, 0, 0, 0.10);
-  --shadow-toast:       0px 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --shadow-nav:         0px -4px 20px 0px rgba(45, 51, 53, 0.04); /* PWA 하단 탭바 */
+  /* ── 그림자 — 라이트 잉크 오프셋 ──────────────────────────────── */
+  --shadow-card:          0 10px 28px rgba(38, 56, 138, 0.08);
+  --shadow-card-hover:    0 14px 34px rgba(38, 56, 138, 0.12);
+  --shadow-card-active:   0 8px 24px rgba(90, 129, 250, 0.24);
+  --shadow-card-elevated: 0 18px 44px rgba(38, 56, 138, 0.14);
+  --shadow-btn:           0 10px 24px rgba(90, 129, 250, 0.22);
+  --shadow-btn-hover:     0 14px 30px rgba(90, 129, 250, 0.28);
+  --shadow-modal:         0 20px 54px rgba(38, 56, 138, 0.16);
+  --shadow-toast:         0 12px 28px rgba(46, 49, 52, 0.18);
+  --shadow-nav:           0 8px 24px rgba(38, 56, 138, 0.06);
+  --shadow-soft:          0 24px 56px rgba(38, 56, 138, 0.10);
 
-  /* ── glow 효과 (브랜드 강조 요소) ──────────────────────────────────── */
-  --glow-brand:    0px 0px 8px 0px rgba(67, 85, 185, 0.6);  /* 활성 dot */
-  --glow-divider:  0px 0px 8px 0px #4355b9;                 /* 프로그레스 바 fill */
+  /* ── glow 효과 ─────────────────────────────────────────────────── */
+  --glow-brand:   0 0 18px rgba(90, 129, 250, 0.24);
+  --glow-divider: 0 0 10px rgba(90, 129, 250, 0.18);
 
-  /* ── 트랜지션 ───────────────────────────────────────────────────────── */
-  --transition-fast:   150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow:   400ms ease;
+  /* ── z-index 레이어 체계 ────────────────────────────────────────── */
+  --z-base:      0;
+  --z-raised:    1;
+  --z-overlay:   5;
+  --z-nav:      10;
+  --z-fixed:   100;
 
-  /* ── 사이드바 다크 테마 ──────────────────────────────────────────────── */
-  --color-sidebar-bg:           #12172a;
-  --color-sidebar-border:       rgba(255, 255, 255, 0.07);
-  --color-sidebar-text:         #7b8799;
-  --color-sidebar-text-hover:   #c1c9d6;
-  --color-sidebar-text-active:  #e8ecf4;
-  --color-sidebar-active-bg:    rgba(67, 85, 185, 0.22);
-  --color-sidebar-hover-bg:     rgba(255, 255, 255, 0.05);
-  --color-sidebar-divider:      rgba(255, 255, 255, 0.08);
+  /* ── 트랜지션 ─────────────────────────────────────────────────── */
+  --transition-fast:   140ms ease;
+  --transition-normal: 260ms ease;
+  --transition-slow:   420ms ease;
+
+  /* ── 커스텀 이징 — 스프링/바운스 ────────────────────────────────── */
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-snappy: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  /* ── 사이드바 보조 토큰 ────────────────────────────────────────── */
+  --color-sidebar-bg:          rgba(255, 255, 255, 0.32);
+  --color-sidebar-border:      rgba(255, 255, 255, 0.30);
+  --color-sidebar-text:        rgba(67, 70, 84, 0.82);
+  --color-sidebar-text-hover:  rgba(44, 61, 143, 0.94);
+  --color-sidebar-text-active: #446ce4;
+  --color-sidebar-active-bg:   rgba(90, 129, 250, 0.12);
+  --color-sidebar-hover-bg:    rgba(255, 255, 255, 0.44);
+  --color-sidebar-divider:     rgba(255, 255, 255, 0.38);
 }
