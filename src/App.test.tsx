@@ -24,7 +24,7 @@ describe('App — 런타임 모드 배지', () => {
     expect(screen.getByText(/SW 데이터 없이 분석/)).toBeInTheDocument();
   });
 
-  it('Electron 모드에서 DESKTOP 배지 표시', () => {
+  it('Electron 모드에서 PC 시스템 진단 UI 표시', () => {
     Object.defineProperty(window, 'electronAPI', {
       value: {
         getSystemInfo: vi.fn(),
@@ -35,14 +35,19 @@ describe('App — 런타임 모드 배지', () => {
       configurable: true,
     });
     render(<App />);
-    expect(screen.getByText('DESKTOP')).toBeInTheDocument();
+    expect(screen.getByText('AI 기반 실시간 진단')).toBeInTheDocument();
   });
 });
 
 describe('App — 클립보드 이미지 붙여넣기', () => {
   beforeEach(() => {
+    // 클립보드 붙여넣기는 Electron 전용 기능 — electronAPI mock 필요
     Object.defineProperty(window, 'electronAPI', {
-      value: undefined,
+      value: {
+        getSystemInfo: vi.fn(),
+        getTopProcesses: vi.fn().mockResolvedValue({ byCpu: [], byMem: [], total: 0 }),
+        getEventLogs: vi.fn().mockResolvedValue([]),
+      },
       writable: true,
       configurable: true,
     });
@@ -55,7 +60,7 @@ describe('App — 클립보드 이미지 붙여넣기', () => {
 
   it('이미지 아닌 클립보드 데이터는 무시', () => {
     render(<App />);
-    const textarea = screen.getByRole('textbox');
+    const textarea = screen.getByPlaceholderText(/영상 편집/i);
 
     const clipboardEvent = new Event('paste', { bubbles: true }) as ClipboardEvent;
     Object.defineProperty(clipboardEvent, 'clipboardData', {
@@ -81,7 +86,7 @@ describe('App — 클립보드 이미지 붙여넣기', () => {
     }
     vi.stubGlobal('FileReader', MockFileReader);
 
-    const textarea = screen.getByRole('textbox');
+    const textarea = screen.getByPlaceholderText(/영상 편집/i);
     const mockFile = new File([''], 'screenshot.png', { type: 'image/png' });
     const clipboardEvent = new Event('paste', { bubbles: true }) as ClipboardEvent;
     Object.defineProperty(clipboardEvent, 'clipboardData', {

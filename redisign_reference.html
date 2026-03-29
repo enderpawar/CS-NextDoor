@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>증상 입력 | PC Doctor AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Pretendard: A Toss-style modern Korean font -->
+<link as="style" crossorigin="" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-tint": "#2755cc",
+              "outline-variant": "#c4c5d6",
+              "surface-container-lowest": "#ffffff",
+              "on-tertiary-fixed-variant": "#6d3a00",
+              "primary": "#5A81FA",
+              "on-secondary-fixed-variant": "#2e3f91",
+              "surface-container": "#edeef2",
+              "outline": "#747685",
+              "on-primary-fixed": "#00164e",
+              "surface-container-high": "#e7e8ec",
+              "on-surface-variant": "#434654",
+              "surface-bright": "#f8f9fd",
+              "inverse-primary": "#b5c4ff",
+              "primary-container": "#446ce4",
+              "on-secondary-container": "#26388a",
+              "on-error": "#ffffff",
+              "on-secondary": "#ffffff",
+              "tertiary-fixed-dim": "#ffb77b",
+              "inverse-surface": "#2e3134",
+              "surface": "#f8f9fd",
+              "surface-dim": "#d9dade",
+              "background": "#f8f9fd",
+              "on-tertiary-fixed": "#2e1500",
+              "surface-container-low": "#f2f3f7",
+              "on-surface": "#191c1f",
+              "on-tertiary-container": "#fffbff",
+              "on-secondary-fixed": "#001159",
+              "surface-variant": "#e1e2e6",
+              "on-primary-container": "#fffbff",
+              "error": "#ba1a1a",
+              "tertiary-fixed": "#ffdcc2",
+              "inverse-on-surface": "#eff1f5",
+              "on-primary-fixed-variant": "#003cae",
+              "error-container": "#ffdad6",
+              "secondary-fixed-dim": "#bac3ff",
+              "tertiary": "#8c4b00",
+              "surface-container-highest": "#e1e2e6",
+              "on-error-container": "#93000a",
+              "primary-fixed": "#dce1ff",
+              "on-primary": "#ffffff",
+              "tertiary-container": "#b06000",
+              "secondary-fixed": "#dee1ff",
+              "secondary-container": "#95a6fe",
+              "on-tertiary": "#ffffff",
+              "on-background": "#191c1f",
+              "secondary": "#4858ab",
+              "primary-fixed-dim": "#b5c4ff"
+            },
+            fontFamily: {
+              "headline": ["Pretendard", "-apple-system", "BlinkMacSystemFont", "system-ui", "Roboto", "sans-serif"],
+              "body": ["Pretendard", "-apple-system", "BlinkMacSystemFont", "system-ui", "Roboto", "sans-serif"],
+              "label": ["Pretendard", "-apple-system", "BlinkMacSystemFont", "system-ui", "Roboto", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      body {
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        background: fixed;
+        background: radial-gradient(at 0% 0%, hsla(225,100%,94%,1) 0, transparent 50%), 
+                    radial-gradient(at 50% 0%, hsla(225,100%,92%,1) 0, transparent 50%), 
+                    radial-gradient(at 100% 0%, hsla(260,100%,94%,1) 0, transparent 50%), 
+                    radial-gradient(at 0% 50%, hsla(225,100%,95%,1) 0, transparent 50%), 
+                    radial-gradient(at 50% 50%, hsla(0,0%,100%,1) 0, transparent 50%), 
+                    radial-gradient(at 100% 50%, hsla(260,100%,95%,1) 0, transparent 50%), 
+                    radial-gradient(at 0% 100%, hsla(225,100%,92%,1) 0, transparent 50%), 
+                    radial-gradient(at 50% 100%, hsla(225,100%,94%,1) 0, transparent 50%), 
+                    radial-gradient(at 100% 100%, hsla(260,100%,92%,1) 0, transparent 50%);
+        background-color: #f8f9fd;
+        color: #191c1f;
+        line-height: 1.6;
+        letter-spacing: -0.01em;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-card {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+      }
+      .glass-sidebar {
+        background: rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-right: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .editorial-shadow {
+        box-shadow: 0 8px 24px -4px rgba(38, 56, 138, 0.06);
+      }
+      .primary-gradient {
+        background: linear-gradient(135deg, #5A81FA 0%, #446ce4 100%);
+      }
+      .glass-input {
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+    </style>
+</head>
+<body class="antialiased overflow-x-hidden min-h-screen">
+<!-- Side Navigation Bar -->
+<aside class="h-screen w-64 fixed left-0 top-0 glass-sidebar z-50 flex flex-col py-6 gap-y-2">
+<div class="px-6 mb-8">
+<h1 class="text-xl font-bold text-[#2C3D8F] tracking-tight">PC Doctor AI</h1>
+<p class="text-[0.7rem] uppercase tracking-wider font-bold text-on-surface-variant/60">AI 기반 실시간 진단</p>
+</div>
+<nav class="flex-1 flex flex-col gap-y-1">
+<div class="text-[#434654] mx-2 px-4 py-3 hover:bg-white/40 rounded-full transition-all flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined">monitor_heart</span>
+<span class="text-[0.9375rem] font-medium">시스템 점검</span>
+</div>
+<div class="text-[#434654] mx-2 px-4 py-3 hover:bg-white/40 rounded-full transition-all flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined">memory</span>
+<span class="text-[0.9375rem] font-medium">하드웨어 스캔</span>
+</div>
+<!-- Active Tab -->
+<div class="bg-primary/10 text-primary rounded-full mx-2 px-4 py-3 flex items-center gap-3 shadow-sm border border-primary/20">
+<span class="material-symbols-outlined">description</span>
+<span class="text-[0.9375rem] font-bold">증상 상세 설명</span>
+</div>
+<div class="text-[#434654] mx-2 px-4 py-3 hover:bg-white/40 rounded-full transition-all flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined">psychology</span>
+<span class="text-[0.9375rem] font-medium">AI 진단 결과</span>
+</div>
+</nav>
+<div class="px-4 py-4 mb-4">
+<button class="w-full primary-gradient text-white py-3 rounded-full font-bold text-sm shadow-lg hover:opacity-90 transition-transform active:scale-95">
+                전체 스캔 시작
+            </button>
+</div>
+<div class="mt-auto flex flex-col gap-y-1 border-t border-white/20 pt-4">
+<div class="text-[#434654] mx-2 px-4 py-2 hover:bg-white/40 rounded-full transition-all flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="text-[0.875rem]">고객 센터</span>
+</div>
+<div class="text-[#434654] mx-2 px-4 py-2 hover:bg-white/40 rounded-full transition-all flex items-center gap-3 cursor-pointer">
+<span class="material-symbols-outlined">logout</span>
+<span class="text-[0.875rem]">로그아웃</span>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 min-h-screen flex flex-col">
+<!-- Top Bar -->
+<header class="w-full h-16 sticky top-0 z-40 bg-transparent flex justify-between items-center px-10">
+<div class="flex items-center gap-4">
+<div class="glass-input px-4 py-2 rounded-full flex items-center gap-2 w-72 backdrop-blur-md">
+<span class="material-symbols-outlined text-outline text-sm">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-full outline-none placeholder:text-on-surface-variant/50" placeholder="진단 기록 및 증상 검색..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">settings</span>
+<div class="flex items-center gap-2 cursor-pointer group">
+<span class="material-symbols-outlined text-secondary text-3xl">account_circle</span>
+</div>
+</div>
+</header>
+<div class="flex-1 px-12 py-12 max-w-7xl mx-auto w-full">
+<!-- Content Grid -->
+<div class="grid grid-cols-12 gap-10">
+<!-- Symptom Entry Section -->
+<div class="col-span-12 lg:col-span-8 flex flex-col gap-8">
+<section>
+<h2 class="text-4xl font-extrabold tracking-tight text-on-surface mb-3">증상 입력</h2>
+<p class="text-on-surface-variant leading-relaxed max-w-2xl font-medium">현재 PC에서 겪고 있는 증상을 자유롭게 설명해 주세요. AI가 시스템 텔레메트리 데이터와 함께 분석하여 정확한 원인을 찾아냅니다.</p>
+</section>
+<!-- Main Input Card (Glass) -->
+<div class="glass-card rounded-xl p-8">
+<div class="mb-6 flex items-center justify-between">
+<label class="text-xs font-bold text-primary uppercase tracking-widest">상세 설명</label>
+<div class="flex gap-2">
+<span class="px-3 py-1 bg-primary/20 text-primary text-[0.6875rem] font-bold rounded-full border border-primary/20">AI 준비됨</span>
+</div>
+</div>
+<textarea class="w-full h-48 p-6 glass-input border-none rounded-lg text-on-surface placeholder-on-surface-variant/40 focus:ring-2 focus:ring-primary/20 resize-none font-body leading-relaxed mb-6" placeholder="예: '영상 편집 프로그램을 실행할 때만 화면이 깜빡이고 본체 팬 소음이 급격히 커집니다. 때때로 블루스크린(오류 코드: VIDEO_TDR_FAILURE)이 발생하며 재부팅되기도 합니다.'"></textarea>
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-5 py-2.5 bg-white/40 hover:bg-white/60 text-primary text-sm font-bold rounded-full transition-all border border-white/40">
+<span class="material-symbols-outlined text-lg">analytics</span>
+                                    실시간 시스템 데이터
+                                </button>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-white/40 hover:bg-white/60 text-primary text-sm font-bold rounded-full transition-all border border-white/40">
+<span class="material-symbols-outlined text-lg">screenshot_region</span>
+                                    스크린샷 첨부
+                                </button>
+</div>
+<button class="px-8 py-3 primary-gradient text-white font-bold rounded-full shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+                                AI 진단 시작하기
+                            </button>
+</div>
+</div>
+<!-- Recent Activities Section -->
+<section>
+<div class="flex items-center justify-between mb-6">
+<h3 class="text-xl font-bold text-on-surface">최근 활동</h3>
+<button class="text-primary text-sm font-bold hover:underline">전체 기록 보기</button>
+</div>
+<div class="space-y-4">
+<div class="glass-card bg-white/20 hover:bg-white/40 p-4 rounded-xl transition-all flex items-center justify-between group cursor-pointer border-white/30">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center text-error border border-error/20">
+<span class="material-symbols-outlined text-xl">error</span>
+</div>
+<div>
+<h4 class="font-bold text-sm">GPU 위험 온도 감지</h4>
+<p class="text-xs text-on-surface-variant">2시간 전 • 자동 스캔</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-all translate-x-0 group-hover:translate-x-1">chevron_right</span>
+</div>
+<div class="glass-card bg-white/20 hover:bg-white/40 p-4 rounded-xl transition-all flex items-center justify-between group cursor-pointer border-white/30">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+<span class="material-symbols-outlined text-xl">check_circle</span>
+</div>
+<div>
+<h4 class="font-bold text-sm">증상 로그: UI 렉 현상</h4>
+<p class="text-xs text-on-surface-variant">어제 • 수동 입력</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-all translate-x-0 group-hover:translate-x-1">chevron_right</span>
+</div>
+</div>
+</section>
+</div>
+<!-- Illustration & Hardware Overview Column -->
+<div class="col-span-12 lg:col-span-4 space-y-8">
+<!-- PC Illustration Card (Glass) -->
+<div class="glass-card rounded-xl p-8 flex flex-col items-center justify-center text-center overflow-hidden relative border-white/50">
+<div class="absolute top-4 right-4 bg-white/60 backdrop-blur-md px-3 py-1 rounded-full text-[0.65rem] font-bold text-primary border border-white/40">실시간 측정 중</div>
+<img alt="현대적인 PC 워크스테이션 일러스트레이션" class="w-full h-48 object-contain mb-6 mix-blend-multiply opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSa0TBUHf-QOxFKa0WgAZlRnCIQCylbev0B70pjE3f_eAoxE8ZVGOJi8PSibwO8D6hargIZgXWIinJk8OrIfdw8bl__0f1wEwINufjhvRa8uR2YsCoQA2TwX2iz20K9eqk4qBpa4M_u58d1pPDqolJMziaMf4TuBqBSxF4ql0ctKVPG63jQqXWvBiW3cbav4j7O1p4H3WyCYaUByHrv_LtFJiUnkagrtBkw8FA8cA_mphVi6q4UJWu2oJPr2MKUhpM4nJiwN9GXLs"/>
+<h4 class="font-bold text-lg mb-2">Workstation-X12</h4>
+<div class="flex gap-4 text-xs text-on-surface-variant font-bold">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> 연결됨</span>
+<span class="flex items-center gap-1">CPU: 42°C</span>
+<span class="flex items-center gap-1">RAM: 32%</span>
+</div>
+</div>
+<!-- Hardware Specs Bento (Glass) -->
+<div class="glass-card rounded-xl p-6 border-white/50">
+<h4 class="font-bold text-primary mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-xl">inventory_2</span>
+                            하드웨어 사양
+                        </h4>
+<div class="space-y-3">
+<div class="flex justify-between items-center border-b border-white/20 pb-2">
+<span class="text-xs font-semibold text-on-surface-variant/70">프로세서</span>
+<span class="text-sm font-bold text-on-surface">AMD Ryzen 9 5950X</span>
+</div>
+<div class="flex justify-between items-center border-b border-white/20 pb-2">
+<span class="text-xs font-semibold text-on-surface-variant/70">그래픽</span>
+<span class="text-sm font-bold text-on-surface">RTX 3080 Ti</span>
+</div>
+<div class="flex justify-between items-center border-b border-white/20 pb-2">
+<span class="text-xs font-semibold text-on-surface-variant/70">메모리</span>
+<span class="text-sm font-bold text-on-surface">64GB DDR4 @3600MHz</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-xs font-semibold text-on-surface-variant/70">기본 저장장치</span>
+<span class="text-sm font-bold text-on-surface">2TB NVMe SSD</span>
+</div>
+</div>
+</div>
+<!-- Expert Tip (Glass) -->
+<div class="glass-card p-6 rounded-xl border-white/40 flex gap-4">
+<span class="material-symbols-outlined text-primary">lightbulb</span>
+<div>
+<p class="text-sm font-bold mb-1 text-on-surface">전문가 팁</p>
+<p class="text-xs text-on-surface-variant leading-relaxed font-medium">문제가 발생하는 시점(예: 윈도우 부팅 시, 게임 실행 중)을 구체적으로 기재하면 AI가 부팅 섹터나 드라이버 충돌을 더 정확히 구별할 수 있습니다.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="w-full py-8 mt-auto border-t border-white/20 bg-transparent backdrop-blur-sm">
+<div class="flex flex-col md:flex-row justify-between items-center px-10 max-w-7xl mx-auto">
+<div class="mb-4 md:mb-0">
+<span class="font-bold text-[#2C3D8F]">PC Doctor AI</span>
+<span class="text-xs text-[#434654] ml-4 font-medium">© 2024 PC Doctor AI. All rights reserved.</span>
+</div>
+<div class="flex gap-8">
+<a class="text-xs text-[#434654] hover:text-primary transition-colors font-semibold" href="#">개인정보 처리방침</a>
+<a class="text-xs text-[#434654] hover:text-primary transition-colors font-semibold" href="#">이용 약관</a>
+<a class="text-xs text-[#434654] hover:text-primary transition-colors font-semibold" href="#">법적 고지</a>
+<a class="text-xs text-[#434654] hover:text-primary transition-colors font-semibold" href="#">고객 지원</a>
+</div>
+</div>
+</footer>
+</main>
+</body></html>

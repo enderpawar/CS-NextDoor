@@ -149,6 +149,87 @@ public class GeminiService {
             """.formatted(symptom, biosInfo);
     }
 
+    /**
+     * SW 가설 확정: baseline + delta → 재현 성공 기반 확정 진단
+     */
+    public String confirmSoftwareDiagnosis(
+            String hypothesisTitle,
+            String baselineJson,
+            String deltaJson,
+            String symptom,
+            String previousDiagnosisId) {
+
+        String prevContext = (previousDiagnosisId != null && !previousDiagnosisId.isBlank())
+            ? "\n\n이전 진단 ID: " + previousDiagnosisId + " (복합 원인 추가 분석 요청)"
+            : "";
+
+        String prompt = """
+            당신은 '옆집 컴공생' AI입니다. 재현 테스트 결과를 바탕으로 SW 진단을 확정해주세요.
+            말투: 친근한 공대생처럼, 존댓말 사용.
+
+            증상: %s
+            검증 중인 가설: %s
+            베이스라인(재현 전): %s
+            Delta(재현 후 변화량): %s%s
+
+            다음 JSON 형식으로만 응답해주세요 (코드 블록 없이):
+            {
+              "diagnosisId": "UUID",
+              "confirmedHypothesis": "확정된 가설 제목",
+              "cause": "[프로세스/서비스]에 문제 있어요. 원인: ...",
+              "solution": "1. 첫 번째 조치\\n2. 두 번째 조치\\n3. 세 번째 조치",
+              "confidence": 0.85,
+              "requiresRepairShop": false,
+              "isComplex": false
+            }
+
+            주의:
+            - confidence: 0.0~1.0, delta 변화량이 클수록 높게 설정
+            - requiresRepairShop: confidence < 0.6 이거나 HW 문제 의심 시 true
+            - isComplex: SW+HW 복합 원인 의심 시 true, "SW + HW 복합 원인 가능성 있음" 명시
+            - 수리기사 권장: confidence < 0.6, 납땜/전문장비/안전위험 중 하나라도 해당 시
+            """.formatted(symptom, hypothesisTitle, baselineJson, deltaJson, prevContext);
+
+        return callGemini(List.of(Map.of("text", prompt)));
+    }
+
+    /**
+     * 이벤트 로그 기반 패턴 제안: 재현 실패 시 유사 패턴 제안
+     */
+    public String suggestPatterns(String eventLogJson, String symptom) {
+        String symptomContext = (symptom != null && !symptom.isBlank())
+            ? "\n증상: " + symptom
+            : "";
+
+        String prompt = """
+            당신은 '옆집 컴공생' AI입니다. Windows 이벤트 로그를 분석해 유사 패턴을 제안해주세요.
+            말투: 친근한 공대생처럼, 존댓말 사용.
+            %s
+
+            이벤트 로그:
+            %s
+
+            이벤트 로그에서 에러/경고 패턴을 분석해 최대 3가지 유사 패턴을 제안해주세요.
+            패턴이 없으면 빈 배열을 반환하세요.
+
+            다음 JSON 형식으로만 응답해주세요 (코드 블록 없이):
+            {
+              "patterns": [
+                {
+                  "id": "p1",
+                  "title": "패턴 제목",
+                  "description": "패턴 설명 (증상과 연관성)",
+                  "matchReason": "이벤트 로그에서 매칭된 근거",
+                  "relevanceScore": 0.85
+                }
+              ],
+              "summary": "패턴이 있으면 요약, 없으면 \\"간헐적 증상이라 지금 당장 파악이 어려워요\\""
+            }
+            """.formatted(symptomContext, eventLogJson);
+
+        return callGemini(List.of(Map.of("text", prompt)));
+    }
+
     private String buildHypothesisPrompt(String symptom, String systemSnapshotJson) {
         String snapshotSection = systemSnapshotJson != null && !systemSnapshotJson.equals("null")
             ? "\n\n시스템 정보:\n" + systemSnapshotJson

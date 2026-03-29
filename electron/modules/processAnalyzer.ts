@@ -34,6 +34,10 @@ export async function getTopProcesses(limit = 10): Promise<ProcessData> {
   }
   const totalMB = cachedTotalMB;
 
+  // si.processes().cpu는 이전 호출과의 delta로 계산됨.
+  // 첫 호출 시 기준값이 없어 전부 0 반환 → 500ms 후 재샘플링으로 실제 값 획득.
+  await si.processes(); // 워밍업 — 기준값 수집
+  await new Promise(resolve => setTimeout(resolve, 500));
   const procs = await si.processes();
 
   // null/undefined 방어: 커널 프로세스(System Idle 등)는 mem/cpu가 null/undefined일 수 있음

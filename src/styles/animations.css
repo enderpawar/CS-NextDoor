@@ -47,10 +47,10 @@
 
 @keyframes glowPulse {
   0%, 100% {
-    box-shadow: 0 0 4px 0 rgba(67, 85, 185, 0.4);
+    box-shadow: 0 0 4px 0 rgba(79, 91, 213, 0.35);
   }
   50% {
-    box-shadow: 0 0 12px 2px rgba(67, 85, 185, 0.7);
+    box-shadow: 0 0 12px 2px rgba(79, 91, 213, 0.60);
   }
 }
 
@@ -110,6 +110,101 @@
   40%       { transform: translateX(4px); }
   60%       { transform: translateX(-3px); }
   80%       { transform: translateX(3px); }
+}
+
+/* ── 스프링 진입 (카드·가설 아이템 등장) ─────────────────────────────────── */
+/* 약간 오버슈트 후 자리 잡는 탄성 애니메이션. */
+
+@keyframes springIn {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.94); }
+  60%  { opacity: 1; transform: translateY(-4px)  scale(1.01); }
+  80%  { transform: translateY(2px)  scale(0.995); }
+  100% { transform: translateY(0)   scale(1); }
+}
+
+/* ── CLACK 팝 (의성어·배지·상태 전환) ───────────────────────────────────── */
+/* 로고의 "CLACK" 텍스트처럼 순간적으로 튀어오르는 효과. */
+
+@keyframes clackPop {
+  0%   { opacity: 0; transform: scale(0.7) rotate(-4deg); }
+  55%  { opacity: 1; transform: scale(1.12) rotate(1deg); }
+  80%  { transform: scale(0.96) rotate(0deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+/* ── 라인 드로우 (진단 결과 구분선·프로그레스) ──────────────────────────── */
+/* 선이 왼쪽에서 오른쪽으로 그려지는 효과. */
+
+@keyframes drawLine {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0% 0 0); }
+}
+
+/* ── 플로트 (마스코트·빈 상태 일러스트) ─────────────────────────────────── */
+
+@keyframes floatIdle {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
+/* ── 오브 브리딩 (히어로 오브 부유 + 글로우 맥동) ──────────────────────── */
+
+@keyframes orbBreath {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    box-shadow:
+      0 0 20px rgba(79, 91, 213, 0.25),
+      0 0 48px rgba(79, 91, 213, 0.12);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.03);
+    box-shadow:
+      0 0 28px rgba(79, 91, 213, 0.35),
+      0 0 64px rgba(79, 91, 213, 0.18);
+  }
+}
+
+/* ── 타이핑 커서 깜빡임 (강화 버전) ────────────────────────────────────── */
+
+@keyframes cursorBlink {
+  0%, 48%  { opacity: 1; }
+  50%, 98% { opacity: 0; }
+  100%     { opacity: 1; }
+}
+
+/* ── 랜딩 ↔ 대화 전환 ────────────────────────────────────────────────────── */
+
+@keyframes ndLandingCollapse {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  60% {
+    opacity: 0.28;
+    transform: translateY(-10px) scale(0.985);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.965);
+    filter: blur(10px);
+  }
+}
+
+@keyframes ndConversationExpand {
+  0% {
+    opacity: 0;
+    transform: translateY(26px) scale(0.985);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.003);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ── 유틸리티 클래스 ─────────────────────────────────────────────────────── */
@@ -181,12 +276,35 @@
   border-radius: var(--radius-md);
 }
 
+/* ── 신규 애니메이션 유틸리티 ─────────────────────────────────────────── */
+
+.animate-spring-in {
+  animation: springIn 480ms var(--ease-spring, cubic-bezier(0.175, 0.885, 0.32, 1.275)) both;
+}
+
+.animate-clack-pop {
+  animation: clackPop 360ms var(--ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+}
+
+.animate-draw-line {
+  animation: drawLine 600ms var(--ease-snappy, cubic-bezier(0.25, 0.46, 0.45, 0.94)) both;
+}
+
+.animate-float {
+  animation: floatIdle 3.2s ease-in-out infinite;
+}
+
 /* ── 지연 유틸리티 ─────────────────────────────────────────────────────── */
 
+.delay-50  { animation-delay: 50ms; }
 .delay-100 { animation-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; }
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
 .delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-800 { animation-delay: 800ms; }
 
 /* ── 접근성: prefers-reduced-motion ────────────────────────────────────── */
 

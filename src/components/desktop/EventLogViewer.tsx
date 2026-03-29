@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { CSSProperties } from 'react';
 import type { EventLog } from '../../types/electron';
 
 function getLevelColor(level: string): string {
@@ -29,50 +30,30 @@ function EventCard({ event }: EventCardProps) {
   const color = getLevelColor(event.levelDisplayName);
 
   return (
-    <div
-      style={{
-        padding: 'var(--space-3)',
-        borderLeft: `3px solid ${color}`,
-        background: 'var(--color-bg-card)',
-        borderRadius: 'var(--radius-sm)',
-        cursor: event.message ? 'pointer' : 'default',
-      }}
-      onClick={() => event.message && setExpanded(v => !v)}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-2)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-          <span
-            className="text-badge badge-error"
-            style={{
-              background: 'transparent',
-              color,
-              padding: 0,
-              letterSpacing: '0.04em',
-            }}
-          >
+    <article className="nd-event-card" onClick={() => event.message && setExpanded(v => !v)} style={{ '--event-tone': color } as CSSProperties}>
+      <div className="nd-event-head">
+        <div className="nd-event-meta">
+          <span className="nd-event-level">
             {event.levelDisplayName.toUpperCase()}
           </span>
-          <span className="text-sm" style={{ color: 'var(--color-text-hint)' }}>
+          <span className="nd-event-subtext">
             ID {event.id}
           </span>
           {event.providerName && (
-            <span className="text-sm" style={{ color: 'var(--color-text-hint)' }}>
+            <span className="nd-event-subtext">
               · {event.providerName}
             </span>
           )}
         </div>
-        <span className="text-sm" style={{ color: 'var(--color-text-hint)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+        <span className="nd-event-time">
           {formatTime(event.timeCreated)}
         </span>
       </div>
 
       {event.message && (
         <p
-          className="text-sm"
+          className="nd-event-message"
           style={{
-            color: 'var(--color-text-secondary)',
-            margin: 'var(--space-1) 0 0',
-            lineHeight: 1.5,
             overflow: expanded ? 'visible' : 'hidden',
             display: expanded ? 'block' : '-webkit-box',
             WebkitLineClamp: expanded ? undefined : 2,
@@ -82,7 +63,7 @@ function EventCard({ event }: EventCardProps) {
           {event.message}
         </p>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -104,59 +85,49 @@ export default function EventLogViewer() {
     load();
   }, [load]);
 
+  const errorCount = events?.filter(event => event.levelDisplayName === 'Critical' || event.levelDisplayName === 'Error').length ?? 0;
+  const warningCount = events?.filter(event => event.levelDisplayName === 'Warning').length ?? 0;
+
   return (
-    <section style={{ marginTop: 'var(--space-6)' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          marginBottom: 'var(--space-3)',
-        }}
-      >
-        <p className="text-label" style={{ margin: 0 }}>
-          이벤트 로그
-          {events && events.length > 0 && (
-            <span style={{ color: 'var(--color-text-hint)', marginLeft: 'var(--space-2)' }}>
-              ({events.length}건)
-            </span>
-          )}
-        </p>
-        <button
-          type="button"
-          className="text-sm"
-          style={{
-            cursor: 'pointer',
-            border: 'none',
-            background: 'none',
-            color: 'var(--color-text-hint)',
-            padding: 'var(--space-1)',
-            marginLeft: 'auto',
-          }}
-          onClick={load}
-          disabled={loading}
-          title="새로고침"
-        >
-          ↺
-        </button>
+    <section className="nd-detail-shell">
+      <div className="nd-detail-hero">
+        <div>
+          <p className="nd-panel-label">Event log stream</p>
+          <h2 className="nd-detail-title">시스템 에러와 경고를 시간순으로 추적합니다.</h2>
+          <p className="nd-detail-copy">
+            최근에 발생한 크래시, 드라이버 경고, 서비스 오류를 읽기 쉬운 카드 형태로 정리했습니다.
+          </p>
+        </div>
+        <div className="nd-detail-actions">
+          <button type="button" className="nd-secondary-button" onClick={load} disabled={loading}>
+            새로고침
+          </button>
+        </div>
+      </div>
+
+      <div className="nd-stat-row">
+        <div className="nd-stat-card">
+          <span className="nd-stat-label">전체 항목</span>
+          <strong className="nd-stat-value">{events?.length ?? '--'}</strong>
+        </div>
+        <div className="nd-stat-card">
+          <span className="nd-stat-label">오류 / Critical</span>
+          <strong className="nd-stat-value">{errorCount}</strong>
+        </div>
+        <div className="nd-stat-card">
+          <span className="nd-stat-label">경고</span>
+          <strong className="nd-stat-value">{warningCount}</strong>
+        </div>
       </div>
 
       {loading ? (
-        <div className="skeleton" style={{ height: '180px', borderRadius: 'var(--radius-lg)' }} />
+        <div className="skeleton" style={{ height: '220px', borderRadius: 'var(--radius-lg)' }} />
       ) : !events || events.length === 0 ? (
-        <p className="text-sm" style={{ color: 'var(--color-text-hint)' }}>
+        <p className="nd-empty-note">
           최근 에러·경고 이벤트가 없어요.
         </p>
       ) : (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-2)',
-            maxHeight: '320px',
-            overflowY: 'auto',
-            paddingRight: 'var(--space-1)',
-          }}
-        >
+        <div className="nd-event-list">
           {events.map((evt, idx) => (
             <EventCard key={`${evt.id}-${idx}`} event={evt} />
           ))}
@@ -164,7 +135,7 @@ export default function EventLogViewer() {
       )}
 
       {!loading && events && events.length > 0 && (
-        <p className="text-sm" style={{ color: 'var(--color-text-hint)', marginTop: 'var(--space-2)' }}>
+        <p className="nd-empty-note">
           항목 클릭 시 전체 메시지 펼쳐보기
         </p>
       )}

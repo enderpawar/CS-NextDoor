@@ -43,6 +43,49 @@ export interface FeedbackRequest {
   note?: string;
 }
 
+// ── Phase 5: SW 진단 풀 플로우 ────────────────────────────────────────────────
+
+export interface SystemMetrics {
+  cpuUsage: number;       // 0~100 %
+  memoryUsed: number;     // bytes
+  memoryTotal: number;    // bytes
+  cpuDeltaPct?: number;   // 재현 후 상대 변화율 %
+  memoryDeltaMB?: number; // 재현 후 변화량 MB
+}
+
+export interface SoftwareDiagnosisRequest {
+  diagnosisId: string;
+  hypothesisId: string;
+  hypothesisTitle: string;
+  symptom: string;
+  baseline: SystemMetrics;
+  delta: SystemMetrics;
+  previousDiagnosisId?: string; // "이게 전부가 아닐 수 있어요" 재진단 시
+}
+
+export interface SoftwareDiagnosisResponse {
+  diagnosisId: string;
+  confirmedHypothesis: string;
+  cause: string;
+  solution: string;
+  confidence: number;        // 0.0~1.0
+  requiresRepairShop: boolean;
+  isComplex: boolean;        // SW+HW 복합 원인 의심
+}
+
+export interface PatternSuggestion {
+  id: string;
+  title: string;
+  description: string;
+  matchReason: string;
+  relevanceScore: number;
+}
+
+export interface PatternsResponse {
+  patterns: PatternSuggestion[];
+  summary: string; // 빈 패턴 시 "간헐적 증상이라 지금 당장 파악이 어려워요"
+}
+
 // ── 세션 ─────────────────────────────────────────────────────────────────────
 
 export type SessionType =
