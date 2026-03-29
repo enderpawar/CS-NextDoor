@@ -3,7 +3,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 type CameraState = 'idle' | 'requesting' | 'active' | 'denied' | 'error';
 
 interface Props {
-  onStreamReady?: (stream: MediaStream) => void;
+  onStreamReady?: () => void;
   onStreamStop?: () => void;
 }
 
@@ -26,7 +26,7 @@ export default function CameraView({ onStreamReady, onStreamStop }: Props) {
         videoRef.current.srcObject = stream;
       }
       setCameraState('active');
-      onStreamReady?.(stream);
+      onStreamReady?.();
     } catch (e) {
       const err = e as Error;
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {

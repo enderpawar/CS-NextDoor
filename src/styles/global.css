@@ -4402,6 +4402,10 @@ body {
   margin: 0;
 }
 
+.nd-pwa-result-preformatted {
+  white-space: pre-line;
+}
+
 .nd-pwa-result-confidence {
   display: flex;
   align-items: center;

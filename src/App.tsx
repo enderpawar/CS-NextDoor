@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRuntimeMode } from './hooks/useRuntimeMode';
 import { useSystemInfo } from './hooks/useSystemInfo';
 import type { ClipboardImage, HypothesesResponse, DiagnosisResponse } from './types';
@@ -111,9 +111,10 @@ export default function App() {
   const [pwaLoading, setPwaLoading] = useState(false);
   const [pwaError, setPwaError] = useState<string | null>(null);
   const [pwaResult, setPwaResult] = useState<DiagnosisResponse | null>(null);
-  const [cameraActive, setCameraActive] = useState(false);
+  // key 변경으로 CameraView를 remount → useEffect cleanup이 스트림을 자동 정리
+  const [cameraKey, setCameraKey] = useState(0);
 
-  const handlePwaDiagnose = useCallback(async () => {
+  const handlePwaDiagnose = async () => {
     if (!pwaSymptom.trim()) return;
     setPwaLoading(true);
     setPwaError(null);
@@ -129,13 +130,13 @@ export default function App() {
     } finally {
       setPwaLoading(false);
     }
-  }, [pwaSymptom]);
+  };
 
   const handlePwaReset = () => {
     setPwaResult(null);
     setPwaError(null);
     setPwaSymptom('');
-    setCameraActive(false);
+    setCameraKey(k => k + 1); // CameraView remount → 활성 스트림 cleanup
   };
 
   return (
@@ -178,7 +179,7 @@ export default function App() {
                   </div>
                   <div className="nd-pwa-result-block">
                     <p className="nd-pwa-result-label">해결 방법</p>
-                    <p className="nd-pwa-result-value" style={{ whiteSpace: 'pre-line' }}>{pwaResult.solution}</p>
+                    <p className="nd-pwa-result-value nd-pwa-result-preformatted">{pwaResult.solution}</p>
                   </div>
                   <div className="nd-pwa-result-confidence">
                     <span className={`nd-confidence-badge ${pwaResult.confidence < 0.6 ? 'warn' : 'ok'}`}>
@@ -198,12 +199,9 @@ export default function App() {
             {/* 진단 입력 + 카메라 */}
             {!pwaResult && (
               <>
-                {/* 카메라 뷰 */}
+                {/* 카메라 뷰 — key 변경 시 remount → 스트림 자동 cleanup */}
                 <section className="nd-pwa-camera-section animate-spring-in">
-                  <CameraView
-                    onStreamReady={() => setCameraActive(true)}
-                    onStreamStop={() => setCameraActive(false)}
-                  />
+                  <CameraView key={cameraKey} />
                 </section>
 
                 {/* 증상 입력 + 진단 요청 */}
@@ -219,9 +217,7 @@ export default function App() {
                     onChange={e => setPwaSymptom(e.target.value)}
                     rows={4}
                   />
-                  {!cameraActive && (
-                    <p className="nd-pwa-camera-tip">카메라를 시작하면 진단 정확도가 높아져요. (Phase 7에서 이미지 분석 추가)</p>
-                  )}
+                  <p className="nd-pwa-camera-tip">카메라로 PC 내부를 비추면 이미지 분석이 추가돼요. (Phase 7)</p>
                   {pwaError && (
                     <div className="nd-pwa-error-banner">
                       오류가 발생했어요: {pwaError}
