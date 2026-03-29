@@ -86,6 +86,15 @@ export interface PatternsResponse {
   summary: string; // 빈 패턴 시 "간헐적 증상이라 지금 당장 파악이 어려워요"
 }
 
+// ── Phase 6: HW 진단 (PWA) ───────────────────────────────────────────────────
+
+export interface HardwareDiagnosisRequest {
+  symptom: string;            // 사용자 증상 텍스트
+  frames: string[];           // Base64 JPEG 배열 (1~2초 간격 핵심 프레임, Phase 7에서 채워짐)
+  sessionId?: string;         // LINKED 세션 시 포함
+  biosType?: string;          // AMI / Award / Phoenix / 기타 (Phase 8에서 채워짐)
+}
+
 // ── 세션 ─────────────────────────────────────────────────────────────────────
 
 export type SessionType =

@@ -4084,3 +4084,369 @@ body {
   line-height: 1.55;
   margin: 0;
 }
+
+/* ── Phase 6: CameraView & PWA 진단 플로우 ──────────────────────────────────── */
+
+.nd-camera-view {
+  width: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.nd-camera-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 260px;
+  background: rgba(255,255,255,0.52);
+  border: 1.5px dashed var(--color-border);
+  border-radius: 24px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.nd-camera-icon-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--color-brand-ghost, rgba(90,129,250,0.08));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-brand);
+}
+
+.nd-camera-hint-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-heading);
+  margin: 0;
+}
+
+.nd-camera-hint {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  max-width: 280px;
+  line-height: 1.6;
+}
+
+.nd-camera-start-btn {
+  margin-top: 4px;
+  padding: 12px 28px;
+  border-radius: 9999px;
+  border: none;
+  background: linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-active) 100%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-btn, 0 10px 24px rgba(90,129,250,0.22));
+  transition: opacity 0.15s;
+}
+
+.nd-camera-start-btn:hover { opacity: 0.88; }
+
+.nd-camera-loading-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.nd-camera-loading-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+
+.nd-camera-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.nd-camera-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* 카메라 스트림 */
+.nd-camera-stream-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #000;
+  aspect-ratio: 16/9;
+}
+
+.nd-camera-stream {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.nd-camera-stream-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 14px;
+}
+
+.nd-camera-focus-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(72%, 280px);
+  aspect-ratio: 4/3;
+  border: 2px solid rgba(90,129,250,0.7);
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.28);
+}
+
+.nd-camera-stop-btn {
+  pointer-events: all;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255,255,255,0.38);
+  background: rgba(0,0,0,0.46);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s;
+}
+
+.nd-camera-stop-btn:hover { background: rgba(0,0,0,0.62); }
+
+/* 권한 거부 / 에러 */
+.nd-camera-denied .nd-camera-status-icon,
+.nd-camera-error-state .nd-camera-status-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nd-camera-status-icon.denied {
+  background: rgba(220,38,38,0.08);
+  color: #dc2626;
+}
+
+.nd-camera-status-icon.error {
+  background: rgba(217,119,6,0.09);
+  color: #d97706;
+}
+
+.nd-camera-retry-btn {
+  padding: 10px 22px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--color-brand);
+  background: transparent;
+  color: var(--color-brand);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nd-camera-retry-btn:hover {
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.nd-camera-error-detail {
+  font-size: 12px;
+  color: var(--color-text-hint);
+  margin: 0;
+  max-width: 260px;
+}
+
+/* PWA 진단 입력 섹션 */
+.nd-pwa-camera-section {
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.nd-pwa-input-section {
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(255,255,255,0.58);
+  border-radius: 24px;
+  backdrop-filter: blur(18px);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-card, 0 10px 28px rgba(38,56,138,0.08));
+}
+
+.nd-pwa-input-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.nd-pwa-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border);
+  background: rgba(248,249,253,0.8);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  resize: vertical;
+  line-height: 1.65;
+  transition: border-color 0.15s;
+  outline: none;
+}
+
+.nd-pwa-textarea:focus {
+  border-color: var(--color-brand);
+  background: rgba(255,255,255,0.95);
+}
+
+.nd-pwa-camera-tip {
+  font-size: 12px;
+  color: var(--color-text-hint);
+  margin: 0;
+}
+
+.nd-pwa-error-banner {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(220,38,38,0.07);
+  border: 1px solid rgba(220,38,38,0.14);
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.nd-pwa-diagnose-btn {
+  align-self: flex-end;
+  padding: 13px 30px;
+  border-radius: 9999px;
+  border: none;
+  background: linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-active) 100%);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-btn, 0 10px 24px rgba(90,129,250,0.22));
+  transition: opacity 0.15s;
+}
+
+.nd-pwa-diagnose-btn:hover:not(:disabled) { opacity: 0.88; }
+.nd-pwa-diagnose-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.nd-pwa-loading-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* PWA 진단 결과 패널 */
+.nd-pwa-result-panel {
+  background: rgba(255,255,255,0.72);
+  border: 1px solid rgba(255,255,255,0.58);
+  border-radius: 28px;
+  backdrop-filter: blur(18px);
+  padding: 28px 24px;
+  box-shadow: var(--shadow-card-elevated, 0 18px 44px rgba(38,56,138,0.14));
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.nd-pwa-result-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin: 4px 0 0;
+  letter-spacing: -0.02em;
+}
+
+.nd-pwa-result-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nd-pwa-result-block {
+  background: rgba(248,249,253,0.7);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.nd-pwa-result-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 6px;
+}
+
+.nd-pwa-result-value {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.nd-pwa-result-confidence {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nd-confidence-badge {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.nd-confidence-badge.ok {
+  background: rgba(34,197,94,0.1);
+  color: #15803d;
+}
+
+.nd-confidence-badge.warn {
+  background: rgba(220,38,38,0.09);
+  color: #dc2626;
+}
+
+.nd-confidence-warn-text {
+  font-size: 13px;
+  color: #dc2626;
+  margin: 0;
+}
+
+.nd-pwa-reset-btn {
+  align-self: flex-start;
+  padding: 11px 24px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--color-border);
+  background: rgba(255,255,255,0.7);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.nd-pwa-reset-btn:hover {
+  border-color: var(--color-brand);
+  background: rgba(255,255,255,0.95);
+}
