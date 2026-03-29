@@ -113,7 +113,7 @@ nextdoor-cs/
 | **2** | ✅ 완료 — main.ts + preload.ts IPC 브리지, useRuntimeMode, App.tsx 클립보드 이미지 붙여넣기 완비 |
 | **3** | ✅ 완료 — CPU 온도·사용률·메모리·GPU(한계 명시)·디스크 I/O 실시간 수집 + SystemDashboard 렌더링 |
 | **4** | ✅ 완료 — processAnalyzer + eventLogReader 수집, ProcessList(CPU/메모리 정렬 토글) + EventLogViewer(에러/경고) 렌더링 |
-| **5** | ✅ 완료 — HypothesisTracker(가설 A/B/C + 상태 관리) + 재현 모드(베이스라인/delta) + PatternSelector + DiagnosisConfidence + /software·/patterns 엔드포인트 |
+| **5** | ✅ 완료 — 3단계 UI(증상입력→가설추적→재현모드) + 줌 전환 애니메이션 + 풀스크린 채팅뷰 + HypothesisTracker(해결됐나요 분기 포함) + 재현 모드(베이스라인 저장·delta 계산·결과 해석) + DiagnosisConfidence(< 0.6 배너) + 베이스라인 이상 감지 + 완료 화면 + 복합 원인 버튼. PatternSelector·HW 에스컬레이션은 Phase 11로 이관. 백엔드 엔드포인트 미구현(USE_MOCK=true). 테스트 54개 |
 | **6** | 🔲 미시작 |
 | **7** | 🔲 미시작 |
 | **7-B** | 🔲 미시작 |

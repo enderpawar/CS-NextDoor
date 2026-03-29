@@ -1,6 +1,7 @@
 # 시스템 워크플로우
 
-> PC 상태에 따라 두 가지 진입점. 가설 순차 추적 → 재현(실패 시 패턴 선택) → HW 에스컬레이션(QR 연장/수동 입력) → 복합 원인 계속 진단 → 사후 확인.
+> PC 상태에 따라 두 가지 진입점. **3단계 플로우**: 증상 입력 → 가설 추적(해결됐나요 분기) → 재현 모드(delta 계산) → 복합 원인 계속 진단 → 사후 확인.
+> Phase 5에서 PatternSelector·HW 에스컬레이션은 UI에서 제거(Phase 11로 이관).
 >
 > 상세 시퀀스 다이어그램: `.claude/rules/workflow-diagram.md`
 
@@ -15,16 +16,27 @@
 
 ---
 
-## SW 진단 흐름 (Electron)
+## SW 진단 흐름 (Electron) — Phase 5 구현 기준
+
+> **3단계 UI**: 증상 입력(1) → 가설 추적(2) → 재현 모드(3)
+> 줌 전환 애니메이션 후 풀스크린 채팅 뷰(`nd-chat-fullview`)로 전환.
 
 1. 증상 텍스트 입력 (Ctrl+V 클립보드 이미지 첨부 가능) + BIOS 제조사 자동 감지
 2. `POST /api/diagnosis/hypotheses` → 가설 A/B/C + 신뢰도% + 즉시 조치
-3. **HypothesisTracker**: 가설을 우선순위대로 순차 시도. 각 시도 완료/실패 상태 추적
-4. 모든 가설 소진 → **재현 모드**: 베이스라인 수집 후 문제 재현
-   - 재현 성공(delta 초과) → `POST /api/diagnosis/software` → 가설 확정
-   - 재현 실패(delta 미달) → `POST /api/diagnosis/patterns` → **PatternSelector** 유사 패턴 제안
-5. SW 미해결 → HW 에스컬레이션: `POST /api/session/create` → QR 코드 + 만료 카운트다운(5분)
-   - QR 스캔 실패 시: `POST /api/session/{id}/extend` (+5분) 또는 6자리 shortCode 수동 입력
+   - confidence < 0.6인 가설 카드마다 "수리기사 상담 권장" 배너 자동 표시
+3. **HypothesisTracker**: 가설을 우선순위대로 순차 시도. 상태 흐름:
+   - `이 조치 시도하기` → `해봤어요` / `효과 없어요`
+   - `해봤어요` → **"해결됐나요?" 분기**: `해결됐어요`(→ done) / `아직 안 됐어요`(→ failed)
+   - `효과 없어요` → 즉시 failed
+   - 어떤 가설이라도 **done** 시 → 초록 완료 카드 표시 + 플로우 종료
+4. 모든 가설 소진(all done/failed) & 미해결 → **재현 모드** (채팅 피드 인라인 UI):
+   - 1단계: 베이스라인 저장 (현재 CPU/메모리 스냅샷). CPU ≥ 90% 또는 메모리 ≥ 95% 시 경고 표시
+   - 2단계: 문제 재현 (사용자가 직접 증상 유발)
+   - 결과: CPU delta ≥ 15%p 또는 메모리 delta ≥ 10%p → "소프트웨어 원인 확인" / 미달 → "간헐적 증상, 수리기사 권장"
+5. 재현 모드 완료 후 미해결 → "이게 전부가 아닐 수 있어요" 버튼(allExhausted && !isResolved 조건) → 가설 초기화 후 재진단
+
+> **제거된 항목 (Phase 5 단순화)**: PatternSelector, HW 에스컬레이션(QR) — Phase 11에서 구현
+> **현재 Mock 상태**: `USE_MOCK = true` (`src/api/diagnosisApi.ts`). 백엔드 준비 시 false로 변경
 
 ---
 

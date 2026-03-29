@@ -60,24 +60,29 @@
 ### [ ] 10. Service Worker 캐시 버전 관리 (Phase 6)
 - `CACHE = 'nextdoorcs-v1'` 고정 시 구버전 캐시와 새 API 충돌 → 배포마다 버전 증가
 
-### [ ] 10-0. HypothesisTracker — 가설 상태 추적 (Phase 5)
-- 가설 A/B/C 카드별 "시도 중 / 완료 / 실패" 상태 + 수동 HW 에스컬레이션 버튼 필수
-- Gemini 응답에 `priority` + `confidence` 필드 포함 요청 (System Prompt에 명시)
+### [x] 10-0. HypothesisTracker — 가설 상태 추적 (Phase 5) ✅ 완료
+- HypoStatus: `idle → trying → checking → done/failed`
+- `해봤어요` → "해결됐나요?" 분기(`해결됐어요`/`아직 안 됐어요`) → done/failed
+- `효과 없어요` → 즉시 failed
+- 어느 가설이라도 done → 초록 완료 카드 표시. `isResolved = Object.values(hypoStatuses).some(s => s === 'done')`
+- HW 에스컬레이션 버튼 제거 (Phase 11 이관)
 
-### [ ] 10-0-1. 재현 실패 → PatternSelector 분기 (Phase 5)
-- delta 임계값 미만(CPU 5%p↓, 메모리 200MB↓) → 재현 실패 판단 → `GET /api/diagnosis/patterns` 호출
-- 패턴 없을 경우: "간헐적 증상이라 지금 당장 파악이 어려워요" 안내
+### [x] 10-0-1. 재현 모드 (Phase 5) ✅ 완료 — PatternSelector 제거, delta 계산으로 대체
+- `allExhausted && !isResolved` 조건에서만 재현 모드 진입 버튼 표시
+- 1단계: 베이스라인 저장 (`baselineSnapshot: { cpu, mem }` state)
+- 2단계: 증상 재현
+- 결과: CPU delta ≥ 15%p 또는 메모리 delta ≥ 10%p → "소프트웨어 원인 확인" / 미달 → "간헐적 증상, 수리기사 권장"
+- PatternSelector(`/api/diagnosis/patterns`) 호출 제거 — Phase 11 이관
 
-### [ ] 10-0-2. DiagnosisConfidence UI (Phase 5)
-- `confidence < 0.6` → 빨강 + "수리기사 상담 권장" 배너 자동 표시. 가설 카드마다 개별 표시
+### [x] 10-0-2. DiagnosisConfidence UI (Phase 5) ✅ 완료
+- `confidence < 0.6` → 빨강 `.nd-confidence-warn-banner` 배너, 가설 카드마다 개별 표시
 
-### [ ] 10-0-3. 복합 원인 계속 진단 (Phase 5)
-- 결과 화면에 "이게 전부가 아닐 수 있어요" 버튼 상시 노출
-- 클릭 시 `previousDiagnosisId` 포함 → Gemini 보완 진단
+### [x] 10-0-3. 복합 원인 계속 진단 (Phase 5) ✅ 완료
+- `allExhausted && !isResolved` 조건에서만 `.nd-compound-cause-bar` 표시
+- 클릭 시 `hypoStatuses` 초기화 + `reproState` 리셋 + `onDiagnose()` 재호출 (previousDiagnosisId 미전달 — Mock 상태)
 
-### [ ] 10-1. 베이스라인 이상 상태 감지 (Phase 5)
-- 베이스라인 수집 직후 CPU 90%+ / 메모리 95%+ 시 경고 표시
-- delta는 절대값 아닌 상대 변화율(%) 기준으로 Gemini 프롬프트 작성
+### [x] 10-1. 베이스라인 이상 상태 감지 (Phase 5) ✅ 완료
+- 베이스라인 1단계 진입 시 CPU ≥ 90% 또는 메모리 ≥ 95% → `.nd-baseline-warn` 노란 경고 표시
 
 ### [ ] 11. MediaRecorder iOS 오디오 포맷 분기 (Phase 8)
 - `isTypeSupported('audio/webm')` 분기로 iOS에서 `audio/mp4` 선택. `snippets.md` 참조
@@ -191,7 +196,7 @@
 | **2** | Electron CORS `app://`, IPC Strict Mode 이중 등록, **클립보드 이미지 붙여넣기** |
 | **3** | CPU 온도 null → Gemini 프롬프트 처리, **GPU 데이터 한계 명시** |
 | **4** | PowerShell async 변환 + JSON 배열 정규화, macOS log 대체 수집 |
-| **5** | **HypothesisTracker + 수동 HW 전환**, **재현 실패 → PatternSelector**, **DiagnosisConfidence UI**, **복합 원인 계속 진단**, 베이스라인 이상 감지 |
+| **5** | ✅ 완료 — HypothesisTracker(해결됐나요 분기), 재현 모드(delta 계산), DiagnosisConfidence, 복합 원인 버튼, 베이스라인 이상 감지. PatternSelector·HW 에스컬레이션 제거(Phase 11 이관). USE_MOCK=true |
 | **6** | PWA HTTPS(ngrok), SW 캐시 버전 관리, OpenCV PRECACHE, **독립 진입 경로**, **오프라인 폴백**, **독립 모드 정확도 경고** |
 | **7** | OpenCV try/finally Mat.delete(), rAF cleanup, **ShootingGuide** |
 | **7-B** | fetch() 스트리밍, CLAHE/prevHist 수명 관리, isSendingRef, SseEmitter 60초, iOS 카메라 권한, **`[완료]` 버퍼 검사**, **정적 선행 안내**, **3단계 피드백 UI**, **3프레임 히스토그램**, **AbortController**, **stale guide 경고** |

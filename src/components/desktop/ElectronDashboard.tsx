@@ -4,9 +4,10 @@ import type { ClipboardImage, HypothesesResponse, Hypothesis } from '../../types
 import type { EventLog, ProcessData, SystemSnapshot } from '../../types/electron';
 import ProcessList from './ProcessList';
 
-type HypoStatus = 'idle' | 'trying' | 'done' | 'failed';
+type HypoStatus = 'idle' | 'trying' | 'checking' | 'done' | 'failed';
 type ActiveTab = 'diagnose' | 'process' | 'events';
 type StepStatus = 'locked' | 'idle' | 'active' | 'done' | 'failed';
+type ReproState = 'idle' | 'baseline' | 'reproducing' | 'done';
 type ChatMsg =
   | { kind: 'user'; text: string }
   | { kind: 'ai-hypo'; response: HypothesesResponse }
@@ -16,8 +17,6 @@ const WORKFLOW_STEPS = [
   { num: 1, label: '증상 입력', sublabel: '시스템 스냅샷 수집' },
   { num: 2, label: '가설 추적', sublabel: 'A · B · C 가설 시도' },
   { num: 3, label: '재현 모드', sublabel: '베이스라인 → 델타 측정' },
-  { num: 4, label: '패턴 분석', sublabel: '유사 증상 이벤트 탐색' },
-  { num: 5, label: 'HW 연결', sublabel: 'QR 스캔 → PWA 진단' },
 ] as const;
 
 function formatMemoryTotal(bytes?: number): string {
@@ -27,13 +26,10 @@ function formatMemoryTotal(bytes?: number): string {
 
 function formatTransferRate(bytesPerSecond?: number | null): string {
   if (bytesPerSecond == null) return '수집 중';
-
   const mb = bytesPerSecond / 1024 / 1024;
   if (mb >= 1) return `${mb.toFixed(1)} MB/s`;
-
   const kb = bytesPerSecond / 1024;
   if (kb >= 1) return `${Math.round(kb)} KB/s`;
-
   return `${Math.round(bytesPerSecond)} B/s`;
 }
 
@@ -125,6 +121,12 @@ function HypoCard({
         </div>
         <span className="nd-hypothesis-percent">우선 확인</span>
       </div>
+      {hypo.confidence < 0.6 && (
+        <div className="nd-confidence-warn-banner" role="alert">
+          <span className="nd-confidence-warn-icon" aria-hidden="true">⚠</span>
+          <span>확신도 {confidencePct}% — 수리기사 상담을 권장합니다.</span>
+        </div>
+      )}
       <div className="nd-hypothesis-actions">
         {status === 'idle' && (
           <button type="button" className="nd-chip-button" onClick={() => onStatus(hypo.id, 'trying')}>
@@ -133,13 +135,26 @@ function HypoCard({
         )}
         {status === 'trying' && (
           <>
-            <button type="button" className="nd-chip-button accent" onClick={() => onStatus(hypo.id, 'done')}>
+            <button type="button" className="nd-chip-button accent" onClick={() => onStatus(hypo.id, 'checking')}>
               해봤어요
             </button>
             <button type="button" className="nd-chip-button muted" onClick={() => onStatus(hypo.id, 'failed')}>
               효과 없어요
             </button>
           </>
+        )}
+        {status === 'checking' && (
+          <div className="nd-hypo-check-branch">
+            <p className="nd-hypo-check-prompt">시도 후 증상이 사라졌나요?</p>
+            <div className="nd-hypo-check-actions">
+              <button type="button" className="nd-chip-button accent" onClick={() => onStatus(hypo.id, 'done')}>
+                해결됐어요
+              </button>
+              <button type="button" className="nd-chip-button muted" onClick={() => onStatus(hypo.id, 'failed')}>
+                아직 안 됐어요
+              </button>
+            </div>
+          </div>
         )}
         {status === 'done' && <span className="nd-status-pill success">완료</span>}
         {status === 'failed' && <span className="nd-status-pill error">추가 점검 필요</span>}
@@ -186,6 +201,9 @@ export default function ElectronDashboard({
   const [hypoStatuses, setHypoStatuses] = useState<Record<string, HypoStatus>>({});
   const [showConversationLayout, setShowConversationLayout] = useState(false);
   const [isConversationMorphing, setIsConversationMorphing] = useState(false);
+  const [isZooming, setIsZooming] = useState(false);
+  const [reproState, setReproState] = useState<ReproState>('idle');
+  const [baselineSnapshot, setBaselineSnapshot] = useState<{ cpu: number | null; mem: number | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const errorCount = eventLogs.filter(log => log.levelDisplayName === 'Error' || log.levelDisplayName === 'Critical').length;
@@ -216,20 +234,24 @@ export default function ElectronDashboard({
 
   useEffect(() => {
     if (diagnosisResponse) {
-      setMessages(prev => [...prev.filter(message => message.kind !== 'error'), { kind: 'ai-hypo', response: diagnosisResponse }]);
+      setMessages(prev => [...prev.filter(m => m.kind !== 'error'), { kind: 'ai-hypo', response: diagnosisResponse }]);
       const nextStatuses: Record<string, HypoStatus> = {};
-      diagnosisResponse.hypotheses.forEach(hypo => {
-        nextStatuses[hypo.id] = 'idle';
-      });
+      diagnosisResponse.hypotheses.forEach(hypo => { nextStatuses[hypo.id] = 'idle'; });
       setHypoStatuses(nextStatuses);
     }
   }, [diagnosisResponse]);
 
   useEffect(() => {
     if (apiError) {
-      setMessages(prev => [...prev.filter(message => message.kind !== 'error'), { kind: 'error', text: apiError }]);
+      setMessages(prev => [...prev.filter(m => m.kind !== 'error'), { kind: 'error', text: apiError }]);
+      // If error arrives before conversation layout (e.g., zoom already started), ensure it shows
+      if (!showConversationLayout) {
+        setShowConversationLayout(true);
+        setIsConversationMorphing(true);
+        window.setTimeout(() => setIsConversationMorphing(false), 520);
+      }
     }
-  }, [apiError]);
+  }, [apiError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const anchor = messagesEndRef.current;
@@ -245,74 +267,62 @@ export default function ElectronDashboard({
       : '';
 
   const handleSend = () => {
-    if (!symptom.trim() || isLoading) return;
-    setMessages(prev => [...prev, { kind: 'user', text: symptom.trim() }]);
-    onDiagnose();
+    if (!symptom.trim() || isLoading || isZooming) return;
+    const text = symptom.trim();
+    setMessages(prev => [...prev, { kind: 'user', text }]);
+    setIsZooming(true);
+
+    window.setTimeout(() => {
+      setIsZooming(false);
+      setShowConversationLayout(true);
+      setIsConversationMorphing(true);
+      onDiagnose();
+      window.setTimeout(() => setIsConversationMorphing(false), 520);
+    }, 380);
   };
 
   const handleReset = () => {
     setMessages([]);
     setHypoStatuses({});
+    setIsZooming(false);
+    setShowConversationLayout(false);
+    setIsConversationMorphing(false);
+    setReproState('idle');
+    setBaselineSnapshot(null);
     onReset();
   };
 
   const allExhausted = diagnosisResponse
-    ? Object.values(hypoStatuses).every(status => status === 'done' || status === 'failed')
+    ? Object.values(hypoStatuses).length > 0 && Object.values(hypoStatuses).every(s => s === 'done' || s === 'failed')
     : false;
-  const hypothesisExists = Boolean(diagnosisResponse);
+  const isResolved = Object.values(hypoStatuses).some(s => s === 'done');
   const hasStartedDiagnosis = messages.some(m => m.kind === 'user');
-  const hasConversationStarted = messages.length > 0 || isLoading || Boolean(diagnosisResponse) || Boolean(apiError);
   const activeStepNumber = !hasStartedDiagnosis ? 1 : allExhausted ? 3 : 2;
-
-  useEffect(() => {
-    if (!hasConversationStarted) {
-      setShowConversationLayout(false);
-      setIsConversationMorphing(false);
-      return;
-    }
-
-    if (!showConversationLayout) {
-      setShowConversationLayout(true);
-      setIsConversationMorphing(true);
-
-      const timer = window.setTimeout(() => {
-        setIsConversationMorphing(false);
-      }, 520);
-
-      return () => window.clearTimeout(timer);
-    }
-
-    return undefined;
-  }, [hasConversationStarted, showConversationLayout]);
 
   const getStepStatus = (stepNum: number): StepStatus => {
     switch (stepNum) {
-      case 1:
-        return hasStartedDiagnosis ? 'done' : 'active';
+      case 1: return hasStartedDiagnosis ? 'done' : 'active';
       case 2:
         if (!hasStartedDiagnosis) return 'locked';
         return allExhausted ? 'done' : 'active';
-      case 3:
-        return allExhausted ? 'active' : 'locked';
-      case 4:
-        return 'locked';
-      case 5:
-        return 'locked';
-      default:
-        return 'locked';
+      case 3: return allExhausted ? 'active' : 'locked';
+      default: return 'locked';
     }
   };
 
   const handleStepClick = (stepNum: number) => {
-    if (stepNum <= 2 || stepNum === 5) setActiveTab('diagnose');
-    if (stepNum === 3) setActiveTab('process');
-    if (stepNum === 4) setActiveTab('events');
+    setActiveTab('diagnose');
+    if (stepNum === 3 && allExhausted && reproState === 'idle') {
+      setReproState('baseline');
+    }
   };
 
-  const renderPromptShell = (conversationMode = false, extraClassName = '') => (
-    <div className={`nd-prompt-shell${conversationMode ? ' is-conversation' : ''}${extraClassName ? ` ${extraClassName}` : ''}`}>
+  const renderPromptShell = (conversationMode = false) => (
+    <div className={`nd-prompt-shell${conversationMode ? ' is-conversation' : ''}`}>
       <div className="nd-prompt-toolbar">
-        <span className="nd-prompt-toolbar-left">증상을 한 줄로 적으면 바로 원인 후보를 정리해드립니다.</span>
+        <span className="nd-prompt-toolbar-left">
+          {conversationMode ? '추가 증상이나 상황을 보충해 주세요.' : '증상을 한 줄로 적으면 바로 원인 후보를 정리해드립니다.'}
+        </span>
         <span className="nd-prompt-toolbar-right">Enter 전송</span>
       </div>
 
@@ -320,7 +330,7 @@ export default function ElectronDashboard({
         className="nd-prompt-input"
         placeholder="예: 영상 편집 프로그램 실행 시 화면이 깜빡이고 본체 팬 소음이 급격히 커집니다. 때때로 VIDEO_TDR_FAILURE 블루스크린이 발생합니다."
         value={symptom}
-        rows={conversationMode ? 4 : 5}
+        rows={conversationMode ? 3 : 5}
         onChange={event => onSymptomChange(event.target.value)}
         onPaste={onPaste}
         onKeyDown={event => {
@@ -345,19 +355,13 @@ export default function ElectronDashboard({
               <button type="button" onClick={onClearImage} aria-label="이미지 제거">✕</button>
             </div>
           )}
-          {(messages.length > 0 || diagnosisResponse) && (
-            <button type="button" className="nd-secondary-button" onClick={handleReset}>
-              초기화
-            </button>
-          )}
           <button
             type="button"
             className="nd-submit-fab"
             onClick={handleSend}
-            disabled={!symptom.trim() || isLoading}
-            aria-label="진단 시작"
+            disabled={!symptom.trim() || isLoading || isZooming}
           >
-            AI 진단 시작하기
+            {isLoading ? '분석 중...' : 'AI 진단 시작하기'}
           </button>
         </div>
       </div>
@@ -489,84 +493,14 @@ export default function ElectronDashboard({
     </div>
   );
 
-  const renderResponseBoard = (conversationMode = false) => (
-    <section className={`nd-response-board${conversationMode ? ' is-conversation' : ''}`} aria-label="AI 진단 패널">
-      <div className="nd-response-board-head">
-        <div>
-          <p className="nd-panel-label">진단 결과</p>
-          <h2 className="nd-response-title">AI 분석 결과</h2>
-        </div>
-        <span className="nd-panel-meta">
-          {isLoading ? '분석 중' : diagnosisResponse ? `가설 ${diagnosisResponse.hypotheses.length}개` : '대기'}
-        </span>
-      </div>
-
-      <div className={`nd-response-feed${conversationMode ? ' is-conversation' : ''}`}>
-        {messages.map((message, index) => {
-          if (message.kind === 'user') {
-            return (
-              <div key={`${message.kind}-${index}`} className="nd-message user">
-                <div className="nd-bubble user">{message.text}</div>
-              </div>
-            );
-          }
-
-          if (message.kind === 'error') {
-            return (
-              <div key={`${message.kind}-${index}`} className="nd-message">
-                <div className="nd-bubble error">{message.text}</div>
-              </div>
-            );
-          }
-
-          return (
-            <div key={`${message.kind}-${index}`} className="nd-message">
-              <div className="nd-bubble ai">
-                <p className="nd-bubble-intro">
-                  {message.response.immediateAction || `${message.response.hypotheses.length}가지 가능성을 찾았습니다. 아래 조치부터 순서대로 확인해보세요.`}
-                </p>
-                <div className="nd-hypothesis-list">
-                  {message.response.hypotheses.map(hypo => (
-                    <HypoCard
-                      key={hypo.id}
-                      hypo={hypo}
-                      status={hypoStatuses[hypo.id] ?? 'idle'}
-                      onStatus={(id, next) => setHypoStatuses(prev => ({ ...prev, [id]: next }))}
-                    />
-                  ))}
-                </div>
-                {allExhausted && (
-                  <div className="nd-exhausted-card">
-                    <strong>모든 가설을 시도했어요.</strong>
-                    <p>재현 모드를 시작하거나 SW + HW 복합 원인 가능성을 염두에 두고 추가 진단을 권장합니다.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {isLoading && (
-          <div className="nd-message">
-            <div className="nd-bubble ai">
-              <p className="nd-bubble-loading">시스템 스냅샷과 증상을 종합해서 가설을 정리하는 중입니다.</p>
-              <div className="nd-loading-dots" aria-label="분석 중">
-                <span />
-                <span />
-                <span />
-              </div>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-    </section>
-  );
-
   const renderDiagnosis = () => (
-    <div className={`nd-diagnose-stage${showConversationLayout ? ' has-conversation' : ''}${isConversationMorphing ? ' is-morphing' : ''}`}>
-      {(!showConversationLayout || isConversationMorphing) && (
-        <section className={`nd-landing-view nd-diagnose-page${isConversationMorphing ? ' is-collapsing' : ''}`}>
+    <div className={`nd-diagnose-stage${isZooming ? ' is-zooming-entry' : ''}`}>
+      {/* Zoom overlay — expands from input card position, covers screen, then conversation replaces */}
+      {isZooming && <div className="nd-zoom-overlay" aria-hidden="true" />}
+
+      {/* Landing view — shown before any diagnosis */}
+      {!showConversationLayout && (
+        <section className="nd-landing-view nd-diagnose-page">
           <div className="nd-diagnose-main">
             <section className="nd-page-intro animate-fade-in-up">
               <p className="nd-page-kicker">PC Doctor AI</p>
@@ -590,22 +524,240 @@ export default function ElectronDashboard({
         </section>
       )}
 
+      {/* Full-screen chat view — zooms in after submission */}
       {showConversationLayout && (
-        <section className={`nd-conversation-view${isConversationMorphing ? ' is-entering' : ' is-visible'}`}>
-          <div className="nd-conversation-main">
-            <div className="nd-conversation-header">
-              <p className="nd-panel-label">AI 진단 결과</p>
-              <h1 className="nd-conversation-title">가능한 원인과 바로 해볼 조치를 정리했습니다.</h1>
-              <p className="nd-conversation-copy">효과 여부를 바로 표시하면서 다음 단계로 빠르게 좁혀가세요.</p>
+        <div className={`nd-chat-fullview${isConversationMorphing ? ' is-entering' : ''}`}>
+
+          {/* Compact system status strip */}
+          <div className="nd-chat-status-strip">
+            <i className="status-online nd-chat-status-dot" aria-hidden="true" />
+            <span className="nd-panel-label" style={{ margin: 0 }}>실시간 연결</span>
+            <div className="nd-chat-status-metrics">
+              <span>CPU {cpuUsage != null ? `${cpuUsage}%` : '—'}</span>
+              <span>메모리 {memoryUsagePct != null ? `${memoryUsagePct}%` : '—'}</span>
+              {errorCount > 0 && <span className="nd-chat-status-error">오류 {errorCount}건</span>}
             </div>
-            {renderResponseBoard(true)}
+            <button type="button" className="nd-chip-button" style={{ marginLeft: 'auto' }} onClick={handleReset}>
+              새 진단
+            </button>
           </div>
 
-          <aside className="nd-conversation-side">
+          {/* Scrollable chat feed */}
+          <div className="nd-chat-feed">
+            {messages.map((message, index) => {
+              if (message.kind === 'user') {
+                return (
+                  <div key={`user-${index}`} className="nd-message user">
+                    <div className="nd-bubble user">{message.text}</div>
+                  </div>
+                );
+              }
+
+              if (message.kind === 'error') {
+                return (
+                  <div key={`error-${index}`} className="nd-message">
+                    <div className="nd-bubble error">{message.text}</div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={`ai-${index}`} className="nd-message">
+                  <div className="nd-bubble ai">
+                    <p className="nd-bubble-intro">
+                      {message.response.immediateAction || `${message.response.hypotheses.length}가지 가능성을 찾았습니다. 가능성 높은 조치부터 순서대로 확인해 보세요.`}
+                    </p>
+                    <div className="nd-hypothesis-row">
+                      {message.response.hypotheses.map(hypo => (
+                        <HypoCard
+                          key={hypo.id}
+                          hypo={hypo}
+                          status={hypoStatuses[hypo.id] ?? 'idle'}
+                          onStatus={(id, next) => setHypoStatuses(prev => ({ ...prev, [id]: next }))}
+                        />
+                      ))}
+                    </div>
+                    {/* 해결됨 완료 카드 */}
+                    {isResolved && (
+                      <div className="nd-resolved-card">
+                        <span className="nd-resolved-icon" aria-hidden="true">✓</span>
+                        <div>
+                          <strong>문제가 해결됐군요!</strong>
+                          <p>도움이 됐다니 기쁩니다. 같은 증상이 다시 생기면 언제든지 돌아오세요.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 모든 가설 소진 — 미해결 시 재현 모드 */}
+                    {allExhausted && !isResolved && reproState === 'idle' && (
+                      <div className="nd-exhausted-card">
+                        <strong>모든 가설을 시도했어요.</strong>
+                        <p>증상을 직접 재현해서 시스템 변화를 측정해볼게요. 재현 모드로 넘어갑니다.</p>
+                        <button
+                          type="button"
+                          className="nd-chip-button accent"
+                          style={{ marginTop: 10 }}
+                          onClick={() => setReproState('baseline')}
+                        >
+                          재현 모드 시작하기 →
+                        </button>
+                      </div>
+                    )}
+
+                    {/* 재현 모드 패널 */}
+                    {allExhausted && !isResolved && reproState !== 'idle' && (() => {
+                      const cpuDelta = baselineSnapshot?.cpu != null && cpuUsage != null
+                        ? cpuUsage - baselineSnapshot.cpu : null;
+                      const memDelta = baselineSnapshot?.mem != null && memoryUsagePct != null
+                        ? memoryUsagePct - baselineSnapshot.mem : null;
+                      const isSignificant = (cpuDelta != null && cpuDelta >= 15) || (memDelta != null && memDelta >= 10);
+
+                      return (
+                        <div className="nd-repro-panel">
+                          {reproState === 'baseline' && (
+                            <>
+                              <div className="nd-repro-step-badge">1단계 — 베이스라인 측정</div>
+                              <p className="nd-repro-desc">
+                                지금 PC가 평상시 상태인지 확인합니다. 아무것도 실행하지 말고 잠시 기다려 주세요.
+                              </p>
+                              {((cpuUsage != null && cpuUsage >= 90) || (memoryUsagePct != null && memoryUsagePct >= 95)) && (
+                                <div className="nd-baseline-warn" role="alert">
+                                  <span className="nd-baseline-warn-icon" aria-hidden="true">⚠</span>
+                                  <div>
+                                    <strong>현재 시스템 부하가 매우 높습니다.</strong>
+                                    <p>
+                                      {cpuUsage != null && cpuUsage >= 90 && `CPU ${cpuUsage}%`}
+                                      {cpuUsage != null && cpuUsage >= 90 && memoryUsagePct != null && memoryUsagePct >= 95 && ' · '}
+                                      {memoryUsagePct != null && memoryUsagePct >= 95 && `메모리 ${memoryUsagePct}%`}
+                                      {' '}— 이미 비정상 상태일 수 있어요. 잠시 기다린 후 부하가 내려가면 저장하세요.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="nd-repro-metrics">
+                                <div className="nd-repro-metric">
+                                  <span>CPU</span>
+                                  <strong>{cpuUsage != null ? `${cpuUsage}%` : '—'}</strong>
+                                </div>
+                                <div className="nd-repro-metric">
+                                  <span>메모리</span>
+                                  <strong>{memoryUsagePct != null ? `${memoryUsagePct}%` : '—'}</strong>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="nd-chip-button accent"
+                                onClick={() => {
+                                  setBaselineSnapshot({ cpu: cpuUsage, mem: memoryUsagePct });
+                                  setReproState('reproducing');
+                                }}
+                              >
+                                베이스라인 저장 후 재현 시작 →
+                              </button>
+                            </>
+                          )}
+                          {reproState === 'reproducing' && (
+                            <>
+                              <div className="nd-repro-step-badge active">2단계 — 증상 재현 중</div>
+                              <p className="nd-repro-desc">
+                                이제 문제가 생기는 상황을 만들어 주세요. 게임 실행, 영상 편집 등 증상이 나타나는 동작을 해보세요.
+                              </p>
+                              <div className="nd-repro-metrics">
+                                <div className="nd-repro-metric">
+                                  <span>CPU (현재)</span>
+                                  <strong>{cpuUsage != null ? `${cpuUsage}%` : '—'}</strong>
+                                </div>
+                                <div className="nd-repro-metric">
+                                  <span>메모리 (현재)</span>
+                                  <strong>{memoryUsagePct != null ? `${memoryUsagePct}%` : '—'}</strong>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="nd-chip-button accent"
+                                onClick={() => setReproState('done')}
+                              >
+                                재현 완료 — 결과 분석하기 →
+                              </button>
+                            </>
+                          )}
+                          {reproState === 'done' && (
+                            <>
+                              <div className="nd-repro-step-badge done">측정 완료</div>
+                              {baselineSnapshot && (
+                                <div className="nd-repro-delta-grid">
+                                  <div className="nd-repro-delta-item">
+                                    <span>CPU 변화</span>
+                                    <strong className={cpuDelta != null && cpuDelta >= 15 ? 'nd-delta-high' : ''}>
+                                      {cpuDelta != null ? `${cpuDelta >= 0 ? '+' : ''}${cpuDelta}%p` : '—'}
+                                    </strong>
+                                  </div>
+                                  <div className="nd-repro-delta-item">
+                                    <span>메모리 변화</span>
+                                    <strong className={memDelta != null && memDelta >= 10 ? 'nd-delta-high' : ''}>
+                                      {memDelta != null ? `${memDelta >= 0 ? '+' : ''}${memDelta}%p` : '—'}
+                                    </strong>
+                                  </div>
+                                </div>
+                              )}
+                              {isSignificant ? (
+                                <div className="nd-repro-result significant">
+                                  <strong>소프트웨어 원인이 확인됐습니다.</strong>
+                                  <p>재현 시 시스템 부하가 유의미하게 상승했습니다. 가설 목록의 조치를 다시 점검하거나 추가 진단을 요청해보세요.</p>
+                                </div>
+                              ) : (
+                                <div className="nd-repro-result intermittent">
+                                  <strong>증상을 재현하기 어려운 상태예요.</strong>
+                                  <p>간헐적 증상이라 지금 당장 파악이 어려워요. 증상이 다시 나타날 때 재시도하거나, 수리기사 상담을 권장합니다.</p>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* 복합 원인 — 소진 후 미해결 시만 노출 */}
+                    {allExhausted && !isResolved && (
+                      <div className="nd-compound-cause-bar">
+                        <span className="nd-compound-cause-hint">복합 원인이 있을 수 있어요.</span>
+                        <button
+                          type="button"
+                          className="nd-chip-button muted"
+                          onClick={() => {
+                            setReproState('idle');
+                            setBaselineSnapshot(null);
+                            setHypoStatuses({});
+                            onDiagnose();
+                          }}
+                        >
+                          이게 전부가 아닐 수 있어요 →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {isLoading && (
+              <div className="nd-message">
+                <div className="nd-bubble ai">
+                  <p className="nd-bubble-loading">시스템 스냅샷과 증상을 종합해서 가설을 정리하는 중입니다.</p>
+                  <div className="nd-loading-dots" aria-label="분석 중">
+                    <span /><span /><span />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Sticky input dock */}
+          <div className="nd-chat-input-dock">
             {renderPromptShell(true)}
-            {renderSystemAside()}
-          </aside>
-        </section>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -642,9 +794,13 @@ export default function ElectronDashboard({
         <div className="nd-rail-section">
           <p className="nd-rail-section-label">진단 단계</p>
           <div className="nd-rail-progress-summary">
-            <span className="nd-rail-progress-step">현재 {activeStepNumber}/5 단계</span>
+            <span className="nd-rail-progress-step">현재 {activeStepNumber}/3 단계</span>
             <span className="nd-rail-progress-copy">
-              {activeStepNumber === 1 ? '증상을 입력하면 바로 가설 단계로 넘어갑니다.' : activeStepNumber === 2 ? '가능성 높은 조치부터 하나씩 확인해보세요.' : '다음 단계 진입 준비가 끝났습니다.'}
+              {activeStepNumber === 1
+                ? '증상을 입력하면 바로 가설 단계로 넘어갑니다.'
+                : activeStepNumber === 2
+                  ? '가능성 높은 조치부터 하나씩 확인해보세요.'
+                  : '모든 가설을 확인했어요. 재현 모드를 시작하세요.'}
             </span>
           </div>
           <div className="nd-workflow-steps">
