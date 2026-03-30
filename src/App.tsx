@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRuntimeMode } from './hooks/useRuntimeMode';
 import { useSystemInfo } from './hooks/useSystemInfo';
-import type { ClipboardImage, HypothesesResponse } from './types';
+import type { ClipboardImage, HypothesesResponse, DiagnosisResponse } from './types';
 import ElectronDashboard from './components/desktop/ElectronDashboard';
-import { generateHypotheses } from './api/diagnosisApi';
+import CameraView from './components/mobile/CameraView';
+import { generateHypotheses, diagnoseHardware } from './api/diagnosisApi';
 import type { EventLog, ProcessData } from './types/electron';
 import './styles/tokens.css';
 import './styles/global.css';
@@ -105,6 +106,39 @@ export default function App() {
     setClipboardImage(null);
   };
 
+  // ── Phase 6: PWA HW 진단 상태 ────────────────────────────────────────────────
+  const [pwaSymptom, setPwaSymptom] = useState('');
+  const [pwaLoading, setPwaLoading] = useState(false);
+  const [pwaError, setPwaError] = useState<string | null>(null);
+  const [pwaResult, setPwaResult] = useState<DiagnosisResponse | null>(null);
+  // key 변경으로 CameraView를 remount → useEffect cleanup이 스트림을 자동 정리
+  const [cameraKey, setCameraKey] = useState(0);
+
+  const handlePwaDiagnose = async () => {
+    if (!pwaSymptom.trim()) return;
+    setPwaLoading(true);
+    setPwaError(null);
+    setPwaResult(null);
+    try {
+      const result = await diagnoseHardware({
+        symptom: pwaSymptom.trim(),
+        frames: [], // Phase 7에서 실제 프레임 채워짐
+      });
+      setPwaResult(result);
+    } catch (e) {
+      setPwaError((e as Error).message);
+    } finally {
+      setPwaLoading(false);
+    }
+  };
+
+  const handlePwaReset = () => {
+    setPwaResult(null);
+    setPwaError(null);
+    setPwaSymptom('');
+    setCameraKey(k => k + 1); // CameraView remount → 활성 스트림 cleanup
+  };
+
   return (
     <div className={`app-root mode-${mode}`}>
       {/* ── PWA 모드 ── */}
@@ -114,9 +148,9 @@ export default function App() {
             <div className="nd-pwa-brand-block">
               <div>
                 <p className="nd-pwa-overline">PC Doctor Mobile</p>
-                <h1 className="nd-pwa-title">하드웨어 진단 가이드</h1>
+                <h1 className="nd-pwa-title">하드웨어 진단</h1>
               </div>
-              <p className="nd-pwa-brand-copy">카메라와 마이크 기반 하드웨어 진단</p>
+              <p className="nd-pwa-brand-copy">카메라 기반 하드웨어 진단</p>
             </div>
             <span className="nd-status-pill neutral">
               {mode === 'pwa-session' ? 'LINKED SESSION' : 'STANDALONE'}
@@ -124,70 +158,118 @@ export default function App() {
           </header>
 
           <main className="nd-pwa-main">
-            <section className="nd-pwa-hero-card nd-pwa-hero-panel animate-spring-in">
-              <div className="nd-pwa-hero-copy">
-                <p className="nd-pwa-hero-eyebrow">mobile flow</p>
-                <h2>카메라와 마이크를 이용해 하드웨어 증상을 단계별로 기록하는 모바일 진단 셸입니다.</h2>
-                <p>
-                  아직 Phase 6~8 화면은 구현 전이지만, 데스크톱과 동일한 글래스 톤과 블루 액센트로 첫 경험을 맞췄습니다.
-                </p>
-                <div className="nd-pwa-pill-row">
-                  <span className="nd-pwa-pill accent">Camera Guide</span>
-                  <span className="nd-pwa-pill">Audio Capture</span>
-                  <span className="nd-pwa-pill">Linked Session</span>
-                </div>
-              </div>
-
-              <div className="nd-pwa-side-grid animate-fade-in-up delay-150">
-                <article className="nd-pwa-side-card primary">
-                  <span className="nd-pwa-highlight-label">준비 중인 기능</span>
-                  <strong>카메라 가이드</strong>
-                  <p>프레임 보조와 촬영 가이드로 물리적 징후를 안정적으로 수집합니다.</p>
-                </article>
-                <article className="nd-pwa-side-card">
-                  <span className="nd-pwa-highlight-label">세션 연결</span>
-                  <strong>BIOS / Windows 안내</strong>
-                  <p>Electron 세션과 연결되면 SW 데이터와 함께 복합 원인을 추적합니다.</p>
-                </article>
-              </div>
-            </section>
-
+            {/* 독립 모드 정확도 경고 — 항상 최상단 */}
             {mode === 'pwa-standalone' && (
-              <div className="nd-pwa-warning animate-fade-in-up delay-300">
-                SW 데이터 없이 분석 중입니다. 독립 모드에서는 정확도가 제한될 수 있어요.
+              <div className="nd-pwa-warning animate-fade-in-up">
+                <strong>독립 모드</strong> — SW 데이터 없이 분석합니다. Electron과 연결하면 더 정확한 진단이 가능해요.
               </div>
             )}
 
-            <section className="nd-pwa-card-grid">
-              <article className="nd-pwa-card animate-fade-in-up delay-150">
-                <span className="nd-pwa-card-label">01</span>
-                <h3>문제 상황 설명</h3>
-                <p>부팅 불가, 비프음, LED 상태처럼 사용자가 체감하는 증상을 먼저 정리합니다.</p>
-              </article>
-              <article className="nd-pwa-card animate-fade-in-up delay-300">
-                <span className="nd-pwa-card-label">02</span>
-                <h3>카메라/오디오 수집</h3>
-                <p>카메라 프레임과 마이크 입력을 기반으로 하드웨어 징후를 수집할 준비를 갖춥니다.</p>
-              </article>
-              <article className="nd-pwa-card animate-fade-in-up delay-400">
-                <span className="nd-pwa-card-label">03</span>
-                <h3>세션 연결</h3>
-                <p>Electron과 연결되면 소프트웨어 정보와 함께 복합 원인 분석으로 확장됩니다.</p>
-              </article>
-            </section>
+            {/* 진단 결과 화면 */}
+            {pwaResult && (
+              <section className="nd-pwa-result-panel animate-spring-in">
+                <div className="nd-pwa-result-header">
+                  <p className="nd-pwa-overline">진단 완료</p>
+                  <h2>하드웨어 진단 결과</h2>
+                </div>
+                <div className="nd-pwa-result-body">
+                  <div className="nd-pwa-result-block">
+                    <p className="nd-pwa-result-label">원인 추정</p>
+                    <p className="nd-pwa-result-value">{pwaResult.cause}</p>
+                  </div>
+                  <div className="nd-pwa-result-block">
+                    <p className="nd-pwa-result-label">해결 방법</p>
+                    <p className="nd-pwa-result-value nd-pwa-result-preformatted">{pwaResult.solution}</p>
+                  </div>
+                  <div className="nd-pwa-result-confidence">
+                    <span className={`nd-confidence-badge ${pwaResult.confidence < 0.6 ? 'warn' : 'ok'}`}>
+                      확신도 약 {Math.round(pwaResult.confidence * 100)}%
+                    </span>
+                    {pwaResult.confidence < 0.6 && (
+                      <p className="nd-confidence-warn-text">수리기사 상담을 권장해요.</p>
+                    )}
+                  </div>
+                </div>
+                <button className="nd-pwa-reset-btn" onClick={handlePwaReset}>
+                  새로운 진단 시작
+                </button>
+              </section>
+            )}
 
-            <section className="nd-pwa-support-grid animate-fade-in-up delay-500">
-              <article className="nd-pwa-support-card">
-                <p className="nd-pwa-support-title">실시간 연결 상태</p>
-                <strong>{mode === 'pwa-session' ? 'Electron 세션 연결됨' : '독립 모드 실행 중'}</strong>
-                <p>세션 연결 시 BIOS/오디오/시스템 진단 흐름이 하나의 진단 기록으로 연결됩니다.</p>
-              </article>
-              <article className="nd-pwa-support-card">
-                <p className="nd-pwa-support-title">권장 안내</p>
-                <strong>문제 발생 시점을 같이 적어주세요</strong>
-                <p>전원 직후, 부팅 화면, 윈도우 진입 직전처럼 시점을 적으면 더 정확한 안내가 가능합니다.</p>
-              </article>
-            </section>
+            {/* 진단 입력 + 카메라 */}
+            {!pwaResult && (
+              <>
+                {/* 카메라 뷰 — key 변경 시 remount → 스트림 자동 cleanup */}
+                <section className="nd-pwa-camera-section animate-spring-in">
+                  <CameraView key={cameraKey} />
+                </section>
+
+                {/* 증상 입력 + 진단 요청 */}
+                <section className="nd-pwa-input-section animate-fade-in-up delay-150">
+                  <label className="nd-pwa-input-label" htmlFor="pwa-symptom">
+                    증상 설명
+                  </label>
+                  <textarea
+                    id="pwa-symptom"
+                    className="nd-pwa-textarea"
+                    placeholder={`PC 상태를 설명해주세요.\n예) 부팅 시 비프음 3번, LED 빨간 불, 메인보드 커패시터 부풀어오름`}
+                    value={pwaSymptom}
+                    onChange={e => setPwaSymptom(e.target.value)}
+                    rows={4}
+                  />
+                  <p className="nd-pwa-camera-tip">카메라로 PC 내부를 비추면 이미지 분석이 추가돼요. (Phase 7)</p>
+                  {pwaError && (
+                    <div className="nd-pwa-error-banner">
+                      오류가 발생했어요: {pwaError}
+                    </div>
+                  )}
+                  <button
+                    className="nd-pwa-diagnose-btn nd-submit-fab"
+                    onClick={handlePwaDiagnose}
+                    disabled={pwaLoading || !pwaSymptom.trim()}
+                  >
+                    {pwaLoading ? (
+                      <span className="nd-pwa-loading-text">
+                        <span className="nd-camera-loading-dots"><span/><span/><span/></span>
+                        분석 중
+                      </span>
+                    ) : '진단 요청'}
+                  </button>
+                </section>
+
+                {/* 안내 카드 그리드 */}
+                <section className="nd-pwa-card-grid">
+                  <article className="nd-pwa-card animate-fade-in-up delay-150">
+                    <span className="nd-pwa-card-label">01</span>
+                    <h3>증상 설명</h3>
+                    <p>부팅 불가, 비프음, LED 상태 등 체감 증상을 입력하세요.</p>
+                  </article>
+                  <article className="nd-pwa-card animate-fade-in-up delay-300">
+                    <span className="nd-pwa-card-label">02</span>
+                    <h3>카메라 촬영</h3>
+                    <p>PC 내부를 카메라로 비추면 이미지 기반 분석이 추가됩니다.</p>
+                  </article>
+                  <article className="nd-pwa-card animate-fade-in-up delay-400">
+                    <span className="nd-pwa-card-label">03</span>
+                    <h3>진단 결과</h3>
+                    <p>원인 추정 + 확신도 + 해결 방법을 제공합니다.</p>
+                  </article>
+                </section>
+
+                <section className="nd-pwa-support-grid animate-fade-in-up delay-500">
+                  <article className="nd-pwa-support-card">
+                    <p className="nd-pwa-support-title">연결 상태</p>
+                    <strong>{mode === 'pwa-session' ? 'Electron 세션 연결됨' : '독립 모드 실행 중'}</strong>
+                    <p>세션 연결 시 SW 데이터와 함께 복합 원인 분석이 가능합니다.</p>
+                  </article>
+                  <article className="nd-pwa-support-card">
+                    <p className="nd-pwa-support-title">촬영 팁</p>
+                    <strong>PC 내부 20~30cm 거리</strong>
+                    <p>메인보드 커패시터, RAM 슬롯, 전원부 등을 밝은 곳에서 찍어주세요.</p>
+                  </article>
+                </section>
+              </>
+            )}
           </main>
         </div>
       )}

@@ -6,6 +6,8 @@ import type {
   SoftwareDiagnosisRequest,
   SoftwareDiagnosisResponse,
   PatternsResponse,
+  HardwareDiagnosisRequest,
+  DiagnosisResponse,
 } from '../types';
 import type { EventLog } from '../types/electron';
 
@@ -95,6 +97,31 @@ export function suggestPatterns(
   symptom?: string,
 ): Promise<PatternsResponse> {
   return post<PatternsResponse>('/api/diagnosis/patterns', { eventLog, symptom });
+}
+
+// ── Phase 6: HW 진단 (PWA) ───────────────────────────────────────────────────
+
+// 네트워크 오류 시 delay ms 후 1회 재시도 (SW 오프라인 폴백과 조합)
+async function withRetry<T>(fn: () => Promise<T>, retries = 1, delay = 5000): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (retries <= 0) throw e;
+    await new Promise(r => setTimeout(r, delay));
+    return withRetry(fn, retries - 1, delay);
+  }
+}
+
+const MOCK_HW_DIAGNOSIS: DiagnosisResponse = {
+  cause: '커패시터 불량 또는 메인보드 전원부 문제로 추정됩니다.',
+  solution: '1. PC 전원 완전 차단 후 커패시터 상단 팽창·갈변 육안 확인\n2. 이상 커패시터 발견 시 전문 수리 의뢰\n3. 메인보드 제조사 보증 기간 확인 권장',
+  confidence: 0.62,
+  parts: ['MAINBOARD'],
+};
+
+export function diagnoseHardware(req: HardwareDiagnosisRequest): Promise<DiagnosisResponse> {
+  if (USE_MOCK) return mockDelay(MOCK_HW_DIAGNOSIS);
+  return withRetry(() => post<DiagnosisResponse>('/api/diagnosis/hardware', req));
 }
 
 // ── 공통: 피드백 ─────────────────────────────────────────────────────────────
