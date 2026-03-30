@@ -99,8 +99,22 @@
 - 세션 모드: `systeminformation.bios().vendor` → `biosType` 세션 저장 → PWA 자동 수신
 - 독립 모드 또는 감지 실패: `BiosTypeSelector` 수동 선택 (선택 없이 녹음 불가)
 
-### [ ] 11-2. ShootingGuide 컴포넌트 (Phase 7)
+### [x] 11-2. ShootingGuide 컴포넌트 (Phase 7) ✅ 완료
 - 메인보드→커패시터→RAM→GPU→전원부 순서 다이어그램. 권장 거리 20~30cm, 플래시 ON
+
+### [ ] 11-2-2. 갤러리 업로드 진단 (Phase 7-C) — GalleryUpload.tsx
+> 실시간 카메라 촬영이 불가하거나 이미 촬영된 사진/영상이 있는 사용자를 위한 대체 입력 경로.
+> `VideoAnalysis.tsx`의 `onFramesReady` 콜백을 그대로 재사용 — App.tsx 변경 최소화.
+
+**구현 포인트:**
+- `<input type="file" accept="image/*,video/*" multiple capture="environment">` — `capture` 속성은 모바일에서 직접 카메라도 호출 가능 (갤러리와 이중 지원)
+- **이미지 처리**: `FileReader` → `<img>` → off-screen `canvas.drawImage` → `processFrame()` 재사용하여 품질 점수 계산 → 상위 5개 선별 → Base64 추출
+- **영상 처리**: `URL.createObjectURL(file)` → `<video>` 태그 로드 → `video.duration` 이후 일정 간격(1초)으로 `video.currentTime` seek → `canplay` 이벤트마다 canvas 캡처 → 동일 선별 로직
+- **업로드 크기 제한**: 이미지 1장당 5MB, 영상 50MB 초과 시 사용자에게 경고. Base64 전송 전 canvas 리사이즈(최대 1280px)로 페이로드 절감
+- **ScoreSummary 호환**: 선별된 프레임 수·blur 제외 수를 계산해 `ScoreSummary` 타입으로 맞춤 → `onFramesReady(frames, dummyBlob, 'image/jpeg', scoreSummary)` 호출. 오디오 없으므로 `new Blob([], { type: 'image/jpeg' })` 전달
+- **UI 배치**: `VideoAnalysis` 섹션 하단 또는 탭 전환(`실시간 촬영` / `갤러리 업로드`)으로 배치. 탭 전환 권장(동시 활성화 방지)
+- **CSP 주의**: `blob:` 이미 `connect-src`에 추가됨. `img-src blob:` 도 이미 허용됨 — 추가 CSP 변경 불필요
+- **iOS 주의**: `<input type="file" accept="video/*">` → iOS Safari에서 갤러리 영상 선택 가능. `capture` 속성 없이도 동작함
 
 ### [ ] 11-2-1. 세션 연장 + 수동 입력 폴백 (Phase 11)
 - 만료 1분 전 경고 + `POST /api/session/{id}/extend` (+5분, 1회 한정)
@@ -198,7 +212,8 @@
 | **4** | PowerShell async 변환 + JSON 배열 정규화, macOS log 대체 수집 |
 | **5** | ✅ 완료 — HypothesisTracker(해결됐나요 분기), 재현 모드(delta 계산), DiagnosisConfidence, 복합 원인 버튼, 베이스라인 이상 감지. PatternSelector·HW 에스컬레이션 제거(Phase 11 이관). USE_MOCK=true |
 | **6** | PWA HTTPS(ngrok), SW 캐시 버전 관리, OpenCV PRECACHE, **독립 진입 경로**, **오프라인 폴백**, **독립 모드 정확도 경고** |
-| **7** | OpenCV try/finally Mat.delete(), rAF cleanup, **ShootingGuide** |
+| **7** | ✅ 완료 — OpenCV try/finally Mat.delete(), rAF cleanup, ShootingGuide |
+| **7-C** | `<input type="file">` accept/capture 속성, 영상 seek 캡처, processFrame 재사용, 크기 제한·리사이즈, ScoreSummary 호환, 탭 전환 UI |
 | **7-B** | fetch() 스트리밍, CLAHE/prevHist 수명 관리, isSendingRef, SseEmitter 60초, iOS 카메라 권한, **`[완료]` 버퍼 검사**, **정적 선행 안내**, **3단계 피드백 UI**, **3프레임 히스토그램**, **AbortController**, **stale guide 경고** |
 | **8** | **BIOS 자동 감지 + 수동 폴백**, MediaRecorder mimeType + AEC 비활성화 |
 | **9** | Spring AI BOM 버전 고정, MCP Silent Failure 대응 |

@@ -4673,3 +4673,89 @@ body {
   text-align: center;
   margin-top: 8px;
 }
+
+/* ── Phase 7-C: 입력 방식 탭 토글 ──────────────────────────────────────── */
+.nd-input-tab-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.nd-input-tab-btn {
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-card-sub);
+  border: 1px solid var(--color-border-ghost);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.nd-input-tab-btn.active {
+  background: var(--color-brand);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* ── Phase 7-C: GalleryUpload ───────────────────────────────────────────── */
+.nd-gallery-upload {
+  width: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.nd-gallery-input-hidden {
+  display: none;
+}
+
+.nd-gallery-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 16px;
+  min-height: 200px;
+  background: var(--color-bg-card-sub);
+  border: 2px dashed var(--color-border-ghost);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  text-align: center;
+}
+
+.nd-gallery-dropzone:hover {
+  border-color: var(--color-brand);
+  background: var(--color-brand-ghost);
+}
+
+.nd-gallery-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-brand);
+  margin-bottom: 4px;
+}
+
+.nd-gallery-filenames {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nd-gallery-processing {
+  padding: 20px 16px;
+  background: var(--color-bg-card-sub);
+  border-radius: 24px;
+}

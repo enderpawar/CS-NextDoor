@@ -4,6 +4,7 @@ import { useSystemInfo } from './hooks/useSystemInfo';
 import type { ClipboardImage, HypothesesResponse, DiagnosisResponse, ScoreSummary } from './types';
 import ElectronDashboard from './components/desktop/ElectronDashboard';
 import VideoAnalysis from './components/mobile/VideoAnalysis';
+import GalleryUpload from './components/mobile/GalleryUpload';
 import ShootingGuide from './components/mobile/ShootingGuide';
 import { generateHypotheses, diagnoseHardware } from './api/diagnosisApi';
 import type { EventLog, ProcessData } from './types/electron';
@@ -119,6 +120,7 @@ export default function App() {
   const [pwaMimeType, setPwaMimeType]         = useState('audio/webm');
   const [pwaScoreSummary, setPwaScoreSummary] = useState<ScoreSummary | null>(null);
   const [showGuide, setShowGuide]             = useState(false);
+  const [inputTab, setInputTab]               = useState<'camera' | 'gallery'>('camera');
 
   const handleFramesReady = useCallback((
     frames: string[],
@@ -157,6 +159,7 @@ export default function App() {
     setPwaFrames([]);
     setPwaAudioBlob(null);
     setPwaScoreSummary(null);
+    setInputTab('camera');
   };
 
   // pwaAudioBlob, pwaMimeType은 Phase 8에서 서버 전송 시 사용
@@ -222,17 +225,37 @@ export default function App() {
             {/* 진단 입력 + 카메라 */}
             {!pwaResult && (
               <>
-                {/* VideoAnalysis — 촬영 가이드 토글 + 프레임 캡처 */}
+                {/* 입력 방식 탭 + 카메라/갤러리 */}
                 <section className="nd-pwa-camera-section animate-spring-in">
-                  <div className="nd-camera-guide-toggle-wrap">
+                  {/* 탭 전환 */}
+                  <div className="nd-input-tab-wrap">
                     <button
-                      className="nd-camera-guide-toggle"
-                      onClick={() => setShowGuide(true)}
+                      className={`nd-input-tab-btn${inputTab === 'camera' ? ' active' : ''}`}
+                      onClick={() => setInputTab('camera')}
                     >
-                      촬영 가이드 보기
+                      실시간 촬영
                     </button>
+                    <button
+                      className={`nd-input-tab-btn${inputTab === 'gallery' ? ' active' : ''}`}
+                      onClick={() => setInputTab('gallery')}
+                    >
+                      갤러리 업로드
+                    </button>
+                    {inputTab === 'camera' && (
+                      <button
+                        className="nd-camera-guide-toggle"
+                        onClick={() => setShowGuide(true)}
+                      >
+                        촬영 가이드
+                      </button>
+                    )}
                   </div>
-                  <VideoAnalysis onFramesReady={handleFramesReady} />
+
+                  {inputTab === 'camera'
+                    ? <VideoAnalysis onFramesReady={handleFramesReady} />
+                    : <GalleryUpload  onFramesReady={handleFramesReady} />
+                  }
+
                   {pwaScoreSummary && (
                     <p className="nd-camera-hint nd-camera-score-summary">
                       선택 프레임 {pwaScoreSummary.sent}개 · 흔들림 제외 {pwaScoreSummary.blurDiscarded}개

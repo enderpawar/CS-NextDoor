@@ -44,7 +44,9 @@
 
 1. BIOS 제조사 확인 (세션 모드: 자동 수신 / 독립·감지 실패: BiosTypeSelector 수동 선택)
 2. **ShootingGuide**: 부위별 촬영 다이어그램 + 거리/각도 안내
-3. 후면 카메라 + 마이크(AEC 비활성) + OpenCV 오버레이 → VideoAnalysis 프레임 추출
+3. **입력 경로 선택** (탭 전환 UI):
+   - **실시간 촬영** (Phase 7): 후면 카메라 + 마이크(AEC 비활성) + OpenCV 오버레이 → VideoAnalysis 프레임 추출
+   - **갤러리 업로드** (Phase 7-C): `<input type="file" accept="image/*,video/*">` → 이미지는 processFrame 재사용 품질 점수 계산, 영상은 1초 간격 seek 캡처 → 상위 5개 선별 → `onFramesReady` 동일 콜백 호출. 오디오 없으므로 빈 Blob 전달
 4. `POST /api/diagnosis/hardware` (독립) 또는 `POST /api/session/{id}/hardware` (세션)
 5. Gemini ← MCP `get_manual_info(biosType, errorCode)` → HW 진단 결과 + 신뢰도%
 6. 세션 모드: WS → DONE 이벤트 → Electron에도 결과 표시
