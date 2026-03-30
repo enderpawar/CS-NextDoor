@@ -29,6 +29,8 @@ export default defineConfig(({ mode }) => ({
   server: {
     port: 3000,
     strictPort: true,
+    allowedHosts: true,
+    host: true,
   },
   define: {
     // 런타임 모드 구분용 환경변수

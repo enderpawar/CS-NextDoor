@@ -16,6 +16,18 @@ export default function CameraView({ onStreamReady, onStreamStop }: Props) {
   const startCamera = useCallback(async () => {
     setCameraState('requesting');
     setErrorMsg(null);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      const isHttp = location.protocol === 'http:' && location.hostname !== 'localhost';
+      setCameraState('error');
+      setErrorMsg(
+        isHttp
+          ? 'HTTPS가 필요해요. 주소창에서 http:// 대신 https://로 접속해주세요.'
+          : '이 브라우저는 카메라 접근을 지원하지 않아요.'
+      );
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
@@ -24,6 +36,7 @@ export default function CameraView({ onStreamReady, onStreamStop }: Props) {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        await videoRef.current.play();
       }
       setCameraState('active');
       onStreamReady?.();
@@ -55,6 +68,23 @@ export default function CameraView({ onStreamReady, onStreamStop }: Props) {
 
   return (
     <div className="nd-camera-view">
+      {/* video는 항상 DOM에 유지 — ref가 startCamera 시점에 반드시 존재해야 함 */}
+      <div className="nd-camera-stream-wrap" style={{ display: cameraState === 'active' ? undefined : 'none' }}>
+        <video
+          ref={videoRef}
+          className="nd-camera-stream"
+          autoPlay
+          playsInline
+          muted
+        />
+        <div className="nd-camera-stream-overlay">
+          <div className="nd-camera-focus-guide"/>
+          <button className="nd-camera-stop-btn" onClick={stopCamera}>
+            종료
+          </button>
+        </div>
+      </div>
+
       {cameraState === 'idle' && (
         <div className="nd-camera-placeholder">
           <div className="nd-camera-icon-wrap">
@@ -77,24 +107,6 @@ export default function CameraView({ onStreamReady, onStreamStop }: Props) {
             <span/><span/><span/>
           </div>
           <p className="nd-camera-hint">카메라 권한을 요청 중이에요…</p>
-        </div>
-      )}
-
-      {cameraState === 'active' && (
-        <div className="nd-camera-stream-wrap">
-          <video
-            ref={videoRef}
-            className="nd-camera-stream"
-            autoPlay
-            playsInline
-            muted
-          />
-          <div className="nd-camera-stream-overlay">
-            <div className="nd-camera-focus-guide"/>
-            <button className="nd-camera-stop-btn" onClick={stopCamera}>
-              종료
-            </button>
-          </div>
         </div>
       )}
 
