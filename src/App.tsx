@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRuntimeMode } from './hooks/useRuntimeMode';
 import { useSystemInfo } from './hooks/useSystemInfo';
-import type { ClipboardImage, HypothesesResponse, DiagnosisResponse } from './types';
+import type { ClipboardImage, HypothesesResponse, DiagnosisResponse, ScoreSummary } from './types';
 import ElectronDashboard from './components/desktop/ElectronDashboard';
-import CameraView from './components/mobile/CameraView';
+import VideoAnalysis from './components/mobile/VideoAnalysis';
+import ShootingGuide from './components/mobile/ShootingGuide';
 import { generateHypotheses, diagnoseHardware } from './api/diagnosisApi';
 import type { EventLog, ProcessData } from './types/electron';
 import './styles/tokens.css';
@@ -106,13 +107,30 @@ export default function App() {
     setClipboardImage(null);
   };
 
-  // ── Phase 6: PWA HW 진단 상태 ────────────────────────────────────────────────
-  const [pwaSymptom, setPwaSymptom] = useState('');
-  const [pwaLoading, setPwaLoading] = useState(false);
-  const [pwaError, setPwaError] = useState<string | null>(null);
-  const [pwaResult, setPwaResult] = useState<DiagnosisResponse | null>(null);
-  // key 변경으로 CameraView를 remount → useEffect cleanup이 스트림을 자동 정리
-  const [cameraKey, setCameraKey] = useState(0);
+  // ── Phase 6/7: PWA HW 진단 상태 ─────────────────────────────────────────────
+  const [pwaSymptom, setPwaSymptom]           = useState('');
+  const [pwaLoading, setPwaLoading]           = useState(false);
+  const [pwaError, setPwaError]               = useState<string | null>(null);
+  const [pwaResult, setPwaResult]             = useState<DiagnosisResponse | null>(null);
+
+  // Phase 7: VideoAnalysis로 캡처된 프레임/오디오
+  const [pwaFrames, setPwaFrames]             = useState<string[]>([]);
+  const [pwaAudioBlob, setPwaAudioBlob]       = useState<Blob | null>(null);
+  const [pwaMimeType, setPwaMimeType]         = useState('audio/webm');
+  const [pwaScoreSummary, setPwaScoreSummary] = useState<ScoreSummary | null>(null);
+  const [showGuide, setShowGuide]             = useState(false);
+
+  const handleFramesReady = useCallback((
+    frames: string[],
+    audioBlob: Blob,
+    mimeType: string,
+    scoreSummary: ScoreSummary,
+  ) => {
+    setPwaFrames(frames);
+    setPwaAudioBlob(audioBlob);
+    setPwaMimeType(mimeType);
+    setPwaScoreSummary(scoreSummary);
+  }, []);
 
   const handlePwaDiagnose = async () => {
     if (!pwaSymptom.trim()) return;
@@ -122,7 +140,7 @@ export default function App() {
     try {
       const result = await diagnoseHardware({
         symptom: pwaSymptom.trim(),
-        frames: [], // Phase 7에서 실제 프레임 채워짐
+        frames: pwaFrames, // Phase 7: 실제 프레임 배열
       });
       setPwaResult(result);
     } catch (e) {
@@ -136,8 +154,13 @@ export default function App() {
     setPwaResult(null);
     setPwaError(null);
     setPwaSymptom('');
-    setCameraKey(k => k + 1); // CameraView remount → 활성 스트림 cleanup
+    setPwaFrames([]);
+    setPwaAudioBlob(null);
+    setPwaScoreSummary(null);
   };
+
+  // pwaAudioBlob, pwaMimeType은 Phase 8에서 서버 전송 시 사용
+  void pwaAudioBlob; void pwaMimeType;
 
   return (
     <div className={`app-root mode-${mode}`}>
@@ -199,10 +222,24 @@ export default function App() {
             {/* 진단 입력 + 카메라 */}
             {!pwaResult && (
               <>
-                {/* 카메라 뷰 — key 변경 시 remount → 스트림 자동 cleanup */}
+                {/* VideoAnalysis — 촬영 가이드 토글 + 프레임 캡처 */}
                 <section className="nd-pwa-camera-section animate-spring-in">
-                  <CameraView key={cameraKey} />
+                  <div className="nd-camera-guide-toggle-wrap">
+                    <button
+                      className="nd-camera-guide-toggle"
+                      onClick={() => setShowGuide(true)}
+                    >
+                      촬영 가이드 보기
+                    </button>
+                  </div>
+                  <VideoAnalysis onFramesReady={handleFramesReady} />
+                  {pwaScoreSummary && (
+                    <p className="nd-camera-hint nd-camera-score-summary">
+                      선택 프레임 {pwaScoreSummary.sent}개 · 흔들림 제외 {pwaScoreSummary.blurDiscarded}개
+                    </p>
+                  )}
                 </section>
+                <ShootingGuide open={showGuide} onClose={() => setShowGuide(false)} />
 
                 {/* 증상 입력 + 진단 요청 */}
                 <section className="nd-pwa-input-section animate-fade-in-up delay-150">
@@ -217,7 +254,7 @@ export default function App() {
                     onChange={e => setPwaSymptom(e.target.value)}
                     rows={4}
                   />
-                  <p className="nd-pwa-camera-tip">카메라로 PC 내부를 비추면 이미지 분석이 추가돼요. (Phase 7)</p>
+                  <p className="nd-pwa-camera-tip">촬영 완료 후 증상을 입력하고 진단을 요청해주세요.</p>
                   {pwaError && (
                     <div className="nd-pwa-error-banner">
                       오류가 발생했어요: {pwaError}

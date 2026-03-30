@@ -128,3 +128,25 @@ export interface GuideSession {
   context: GuideContext;
   status: 'ACTIVE' | 'DONE';
 }
+
+// ── Phase 7: OpenCV 프레임 분석 ───────────────────────────────────────────────
+
+export type Guidance = 'stabilize' | 'no_target' | 'too_far' | 'ready';
+
+export interface FrameAnalysis {
+  guidance: Guidance;
+  guidanceText: string;
+  qualityScore: number;      // 0~100
+  blurScore: number;
+  coverageRatio: number;
+  isReadyToCapture: boolean;
+}
+
+export interface ScoreSummary {
+  total: number;
+  sent: number;
+  blurDiscarded: number;
+  max: number;
+  avg: number;
+  frameScores: { score: string; blur: string }[];
+}
