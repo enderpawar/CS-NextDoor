@@ -100,8 +100,7 @@ async function waitAndShot(selector, filename, description) {
 // ── 1. PWA 홈 화면 ───────────────────────────────────────────────────────────
 console.log('\n■ 1. PWA 홈 화면');
 await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 15000 });
-// 인트로 애니메이션 3.15초 완료 대기 (App.tsx: setTimeout 3150ms)
-await page.waitForTimeout(4000);
+await page.waitForTimeout(600);
 await shot('01-pwa-home.png', 'PWA 메인 랜딩 — 독립 모드');
 
 // 독립 모드 경고 확인 후 일반 모드로 재접속 (query param 없음이 standalone)
@@ -194,8 +193,7 @@ await desktopPage.addInitScript(() => {
 });
 
 await desktopPage.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 15000 });
-// 인트로 애니메이션(3.15s) + 렌더링 여유 대기
-await desktopPage.waitForTimeout(5000);
+await desktopPage.waitForTimeout(1000);
 // 빈 화면이면 더 대기
 const bodyText = await desktopPage.evaluate(() => document.body.innerText.trim().length);
 if (bodyText < 20) {

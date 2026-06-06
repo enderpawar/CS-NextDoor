@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "CS-NextDoor",
+			"path": "../../.."
+		},
+		{
+			"name": "test data",
+			"path": "../../../../test data"
+		}
+	],
+	"settings": {}
+}
