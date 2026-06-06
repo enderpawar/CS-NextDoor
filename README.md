@@ -954,6 +954,3 @@ MIT License
 
 - [@enderpawar](https://github.com/enderpawar) — 전체 설계 및 구현
 
----
-
-*일부 구현은 Claude Code (Anthropic) 및 Codex (OpenAI)의 AI 지원으로 작성되었습니다.*
